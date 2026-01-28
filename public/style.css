@@ -1,0 +1,121 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #f0f0f0;
+}
+
+#chat-container {
+    display: flex;
+    width: 80%;
+    height: 80%;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    margin-bottom: 20px;
+}
+
+#user-pane {
+    width: 40%;
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#splitter {
+    width: 8px;
+    background-color: #ccc;
+    cursor: col-resize;
+    border-radius: 4px;
+    margin: 0 2px;
+    transition: background-color 0.2s;
+}
+
+#splitter:hover {
+    background-color: #999;
+}
+
+#bot-pane-container {
+    width: 60%;
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#bot-pane {
+    border: none;
+}
+
+#settings-pane {
+    position: fixed;
+    top: 0;
+    right: -250px;
+    width: 250px;
+    height: 100%;
+    background-color: #f9f9f9;
+    border-left: 1px solid #ccc;
+    transition: right 0.3s ease-in-out;
+    padding: 10px;
+    box-sizing: border-box;
+    z-index: 1000;
+}
+
+#settings-pane.expanded {
+    right: 0;
+}
+
+#settings-toggle {
+    position: fixed;
+    right: 0.1%;
+    top: 4%;
+    transform: translateY(-50%);
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 2px;
+    cursor: pointer;
+    border-radius: 5px 0 0 5px;
+    z-index: 1001;
+    transition: right 0.3s ease-in-out;
+}
+
+#settings-toggle.expanded {
+    right: calc(5% + 250px);
+}
+
+#settings-content {
+    display: block;
+}
+
+#settings-content h3 {
+    margin-top: 0;
+}
+
+#model-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#send-button,
+#clear-button,
+#attach-button {
+    border: none;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-left: 10px;
+    cursor: pointer;
+}
