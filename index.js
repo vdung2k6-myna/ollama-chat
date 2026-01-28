@@ -1,9 +1,11 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 const port = 3000;
+const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://myna.ddns.net:8080';
 
 app.use(express.json());
 app.use(cors());
@@ -11,7 +13,7 @@ app.use(express.static('public'));
 
 app.get('/models', async (req, res) => {
     try {
-        const response = await fetch('https://myna.ddns.net:8080/api/tags');
+        const response = await fetch(`${OLLAMA_API_URL}/api/tags`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -27,7 +29,7 @@ app.post('/chat', async (req, res) => {
     const { message, model } = req.body;
 
     try {
-        const response = await fetch('https://myna.ddns.net:8080/api/generate', {
+        const response = await fetch(`${OLLAMA_API_URL}/api/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
