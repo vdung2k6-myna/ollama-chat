@@ -113,9 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 appendMessage(botPane, 'bot-message', `Error: ${errorData.error || 'Unknown error'}`);
                 return;
             }
-            quill.setContents([{ insert: '. . .' }]);
+            quill.setContents([
+                { insert: '. . .' }
+            ]);
             const data = await response.json();
-            quill.setContents([{ insert: data.response }]);
+            quill.setContents([
+                { insert: `<thinking> ${data.thinking}` },
+                { insert: data.response }
+            ]);
         }
         catch (error) {
             console.error('Error:', error);

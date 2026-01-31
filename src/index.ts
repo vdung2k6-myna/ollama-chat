@@ -40,6 +40,7 @@ app.post('/chat', async (req: Request, res: Response) => {
             body: JSON.stringify({
                 model: model,
                 prompt: message,
+                thinking: true,
                 stream: false,
             }),
         });
