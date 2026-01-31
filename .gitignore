@@ -62,3 +62,4 @@ out/
 .claude/
 public/app.js.map
 public/app.js
+public/app.d.ts
