@@ -41,7 +41,7 @@ app.post('/chat', async (req: Request, res: Response) => {
                 model: model,
                 prompt: message,
                 thinking: true,
-                stream: false,
+                stream: true,
             }),
         });
 
@@ -51,8 +51,20 @@ app.post('/chat', async (req: Request, res: Response) => {
             return res.status(response.status).send(errorData.error || 'Error from Ollama API');
         }
 
-        console.log('Piping Ollama response to client.');
-        response.body.pipe(res);
+        // Set headers for streaming
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        // Pipe the streaming response
+        response.body.on('data', (chunk: Buffer) => {
+            res.write(chunk);
+        });
+
+        response.body.on('end', () => {
+            res.end();
+        });
     } catch (error) {
         console.error('Error in /chat endpoint:', error);
         res.status(500).send('Error connecting to Ollama API');

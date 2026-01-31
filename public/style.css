@@ -247,16 +247,6 @@ body {
     color: #555;
 }
 
-/* Loading Indicator Animation */
-@keyframes pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 1; }
-}
-
-.ql-editor p {
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
 /* Adjust main content for sidebar */
 #chat-container {
     margin-left: 200px;

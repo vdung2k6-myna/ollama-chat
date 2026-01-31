@@ -113,14 +113,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 appendMessage(botPane, 'bot-message', `Error: ${errorData.error || 'Unknown error'}`);
                 return;
             }
+            
+            // Clear the previous response and show loading indicator
             quill.setContents([
                 { insert: '. . .' }
             ]);
-            const data = await response.json();
-            quill.setContents([
-                { insert: `<thinking> ${data.thinking}` },
-                { insert: data.response }
-            ]);
+            
+            // Process the streaming response
+            if (response.body) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+                let fullThinking = '';
+                
+                while (true) {
+                    let response = '';
+                    let thinking = '';
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = JSON.parse(decoder.decode(value));
+                    let isThinking = chunk.thinking;
+
+                    // Parse the streaming response - handle thinking tags properly
+                    if (isThinking) {
+                        fullThinking += chunk.thinking;
+                    } else {
+                        fullResponse += chunk.response;
+                    }                    
+                }
+                quill.setContents([
+                    { insert: fullResponse }
+                ]);
+            }
         }
         catch (error) {
             console.error('Error:', error);
