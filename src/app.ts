@@ -9,14 +9,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement;
     const settingsPane = document.getElementById('settings-pane') as HTMLElement;
     const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+    const systemMessageInput = document.getElementById('system-message') as HTMLTextAreaElement;
     const splitter = document.getElementById('splitter') as HTMLElement;
     const chatContainer = document.getElementById('chat-container') as HTMLElement;
 
     // Bot message element for displaying responses
     let currentBotMessage: HTMLElement | null = null;
 
-    // Conversation history for context
+    // Conversation history for context (user and assistant messages only)
     let conversationHistory: Array<{ role: string; content: string }> = [];
+    // System message (not part of conversation history)
+    let currentSystemMessage: string = '';
 
     // Fetch Ollama models and populate the combobox
     async function fetchModels() {
@@ -91,6 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
         botPane.innerHTML = '';
         conversationHistory = [];
         userInput.value = '';
+        systemMessageInput.value = '';
+        currentSystemMessage = '';
         userInput.focus();
     });
 
@@ -100,6 +105,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (message === '')
             return;
         const selectedModel = modelSelect.value; // Get the selected model
+
+        // Capture system message (only update if user provided one)
+        const systemMessage = systemMessageInput.value.trim();
+        if (systemMessage !== '') {
+            currentSystemMessage = systemMessage;
+        }
 
         // Add user message to conversation history
         conversationHistory.push({ role: 'user', content: message });
@@ -111,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 message: message,
                 model: selectedModel,
                 messages: conversationHistory,
+                systemMessage: currentSystemMessage,
             };
             const response = await fetch('/chat', {
                 method: 'POST',

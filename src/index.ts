@@ -29,13 +29,23 @@ app.get('/models', async (req: Request, res: Response) => {
 });
 
 app.post('/chat', async (req: Request, res: Response) => {
-    const { message, model, messages } = req.body;
+    const { message, model, messages, systemMessage } = req.body;
 
     try {
         // Build messages array for chat API
-        const chatMessages = messages && messages.length > 0
-            ? messages
-            : [{ role: 'user', content: message }];
+        const chatMessages: Array<{ role: string; content: string }> = [];
+
+        // Add system message if provided
+        if (systemMessage && systemMessage.trim() !== '') {
+            chatMessages.push({ role: 'system', content: systemMessage });
+        }
+
+        // Add conversation messages
+        if (messages && messages.length > 0) {
+            chatMessages.push(...messages);
+        } else {
+            chatMessages.push({ role: 'user', content: message });
+        }
 
         const response = await fetch(`${OLLAMA_API_URL}/api/chat`, {
             method: 'POST',
@@ -61,12 +71,35 @@ app.post('/chat', async (req: Request, res: Response) => {
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('Access-Control-Allow-Origin', '*');
 
-        // Pipe the streaming response
+        // Handle streaming with proper chunk parsing
+        let buffer = '';
         response.body.on('data', (chunk: Buffer) => {
-            res.write(chunk);
+            buffer += chunk.toString();
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                res.write(line + '\n');
+
+                // Check if this chunk indicates the stream is done
+                try {
+                    const data = JSON.parse(line);
+                    if (data.done) {
+                        res.end();
+                        return;
+                    }
+                } catch (e) {
+                    // Ignore parse errors
+                }
+            }
         });
 
         response.body.on('end', () => {
+            // Process any remaining data in buffer
+            if (buffer.trim() !== '') {
+                res.write(buffer);
+            }
             res.end();
         });
     } catch (error) {
