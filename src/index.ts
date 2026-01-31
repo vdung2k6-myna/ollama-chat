@@ -1,17 +1,20 @@
-const express = require('express');
-const fetch = require('node-fetch');
-const cors = require('cors');
-require('dotenv').config();
+import express, { Express, Request, Response } from 'express';
+import fetch from 'node-fetch';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-const app = express();
-const port = 3000;
+dotenv.config();
+
+const app: Express = express();
 const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://myna.ddns.net:8080';
+const HTTP_LOCAL_HOST = process.env.HTTP_LOCAL_HOST || 'http://localhost';
+const HTTP_LOCAL_PORT = process.env.HTTP_LOCAL_PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
 
-app.get('/models', async (req, res) => {
+app.get('/models', async (req: Request, res: Response) => {
     try {
         const response = await fetch(`${OLLAMA_API_URL}/api/tags`);
         if (!response.ok) {
@@ -25,7 +28,7 @@ app.get('/models', async (req, res) => {
     }
 });
 
-app.post('/chat', async (req, res) => {
+app.post('/chat', async (req: Request, res: Response) => {
     const { message, model } = req.body;
 
     try {
@@ -41,10 +44,6 @@ app.post('/chat', async (req, res) => {
             }),
         });
 
-        console.log('Ollama API Response Status:', response.status, response.statusText);
-        console.log('Ollama API Response OK:', response.ok);
-        console.log('Ollama API Content-Type:', response.headers.get('Content-Type'));
-
         if (!response.ok) {
             const errorData = await response.json();
             console.error('Error from Ollama API:', errorData);
@@ -59,6 +58,6 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+app.listen(HTTP_LOCAL_PORT, () => {
+    console.log(`Server is running on ${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}`);
 });
