@@ -1,4 +1,4 @@
-declare const Quill: any;
+/// <reference path="./types/marked.d.ts" />
 
 document.addEventListener('DOMContentLoaded', () => {
     const userPane = document.getElementById('user-pane') as HTMLElement;
@@ -12,14 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const splitter = document.getElementById('splitter') as HTMLElement;
     const chatContainer = document.getElementById('chat-container') as HTMLElement;
 
-    // Initialize Quill for the bot pane
-    const quill = new Quill(botPane, {
-        theme: 'snow',
-        readOnly: true,
-        modules: {
-            toolbar: false
-        }
-    });
+    // Bot message element for displaying responses
+    let currentBotMessage: HTMLElement | null = null;
 
     // Fetch Ollama models and populate the combobox
     async function fetchModels() {
@@ -114,10 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // Clear the previous response and show loading indicator
-            quill.setContents([
-                { insert: '. . .' }
-            ]);
+            // Create a new bot message element for the streaming response
+            currentBotMessage = document.createElement('div');
+            currentBotMessage.classList.add('bot-message');
+            currentBotMessage.innerHTML = '. . .';
+            botPane.appendChild(currentBotMessage);
+            botPane.scrollTop = botPane.scrollHeight;
             
             // Process the streaming response
             if (response.body) {
@@ -125,26 +121,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 const decoder = new TextDecoder();
                 let fullResponse = '';
                 let fullThinking = '';
+                let buffer = '';
                 
                 while (true) {
-                    let response = '';
-                    let thinking = '';
                     const { done, value } = await reader.read();
                     if (done) break;
                     
-                    const chunk = JSON.parse(decoder.decode(value));
-                    let isThinking = chunk.thinking;
-
-                    // Parse the streaming response - handle thinking tags properly
-                    if (isThinking) {
-                        fullThinking += chunk.thinking;
-                    } else {
-                        fullResponse += chunk.response;
-                    }                    
+                    // Append new data to buffer
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // Split by newlines and process complete lines
+                    const lines = buffer.split('\n');
+                    // Keep the last partial line in the buffer
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        
+                        try {
+                            const chunk = JSON.parse(line);
+                            
+                            // Handle thinking content
+                            if (chunk.thinking) {
+                                fullThinking += chunk.thinking;
+                            }
+                            
+                            // Handle response content
+                            if (chunk.response) {
+                                fullResponse += chunk.response;
+                                if (currentBotMessage) {
+                                    currentBotMessage.innerHTML = window.marked.parse(fullResponse);
+                                    botPane.scrollTop = botPane.scrollHeight;
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing chunk:', line, e);
+                        }
+                    }
                 }
-                quill.setContents([
-                    { insert: fullResponse }
-                ]);
+                
+                // Process any remaining data in buffer
+                if (buffer.trim() !== '') {
+                    try {
+                        const chunk = JSON.parse(buffer);
+                        if (chunk.thinking) {
+                            fullThinking += chunk.thinking;
+                        }
+                        if (chunk.response) {
+                            fullResponse += chunk.response;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing final chunk:', buffer, e);
+                    }
+                }
+                
+                if (currentBotMessage) {
+                    currentBotMessage.innerHTML = window.marked.parse(fullResponse);
+                    botPane.scrollTop = botPane.scrollHeight;
+                }
             }
         }
         catch (error) {
