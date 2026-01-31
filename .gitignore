@@ -61,4 +61,4 @@ out/
 # claude
 .claude/
 public/app.js.map
-public/app.js.map
+public/app.js
