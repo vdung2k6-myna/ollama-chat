@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bot message element for displaying responses
     let currentBotMessage: HTMLElement | null = null;
 
+    // Conversation history for context
+    let conversationHistory: Array<{ role: string; content: string }> = [];
+
     // Fetch Ollama models and populate the combobox
     async function fetchModels() {
         try {
@@ -82,18 +85,32 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.style.cursor = 'default';
     });
 
+    // Clear conversation
+    clearButton.addEventListener('click', () => {
+        userPane.innerHTML = '';
+        botPane.innerHTML = '';
+        conversationHistory = [];
+        userInput.value = '';
+        userInput.focus();
+    });
+
     // Send message with streaming
     async function sendMessage() {
         const message = userInput.value.trim();
         if (message === '')
             return;
         const selectedModel = modelSelect.value; // Get the selected model
+
+        // Add user message to conversation history
+        conversationHistory.push({ role: 'user', content: message });
+
         appendMessage(userPane, 'user-message', message);
         userInput.value = '';
         try {
             const requestBody = {
                 message: message,
                 model: selectedModel,
+                messages: conversationHistory,
             };
             const response = await fetch('/chat', {
                 method: 'POST',
@@ -137,22 +154,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     for (const line of lines) {
                         if (line.trim() === '') continue;
-                        
+
                         try {
                             const chunk = JSON.parse(line);
-                            
-                            // Handle thinking content
-                            if (chunk.thinking) {
-                                fullThinking += chunk.thinking;
-                            }
-                            
-                            // Handle response content
-                            if (chunk.response) {
-                                fullResponse += chunk.response;
+
+                            // Handle chat API response format (message.content)
+                            if (chunk.message && chunk.message.content) {
+                                fullResponse += chunk.message.content;
                                 if (currentBotMessage) {
                                     currentBotMessage.innerHTML = window.marked.parse(fullResponse);
                                     botPane.scrollTop = botPane.scrollHeight;
                                 }
+                            }
+                            // Handle thinking content (if supported)
+                            if (chunk.thinking) {
+                                fullThinking += chunk.thinking;
                             }
                         } catch (e) {
                             console.error('Error parsing chunk:', line, e);
@@ -164,20 +180,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (buffer.trim() !== '') {
                     try {
                         const chunk = JSON.parse(buffer);
+                        if (chunk.message && chunk.message.content) {
+                            fullResponse += chunk.message.content;
+                        }
                         if (chunk.thinking) {
                             fullThinking += chunk.thinking;
-                        }
-                        if (chunk.response) {
-                            fullResponse += chunk.response;
                         }
                     } catch (e) {
                         console.error('Error parsing final chunk:', buffer, e);
                     }
                 }
-                
+
                 if (currentBotMessage) {
                     currentBotMessage.innerHTML = window.marked.parse(fullResponse);
                     botPane.scrollTop = botPane.scrollHeight;
+                }
+
+                // Add assistant response to conversation history
+                if (fullResponse.trim() !== '') {
+                    conversationHistory.push({ role: 'assistant', content: fullResponse });
                 }
             }
         }

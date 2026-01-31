@@ -29,18 +29,22 @@ app.get('/models', async (req: Request, res: Response) => {
 });
 
 app.post('/chat', async (req: Request, res: Response) => {
-    const { message, model } = req.body;
+    const { message, model, messages } = req.body;
 
     try {
-        const response = await fetch(`${OLLAMA_API_URL}/api/generate`, {
+        // Build messages array for chat API
+        const chatMessages = messages && messages.length > 0
+            ? messages
+            : [{ role: 'user', content: message }];
+
+        const response = await fetch(`${OLLAMA_API_URL}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 model: model,
-                prompt: message,
-                thinking: true,
+                messages: chatMessages,
                 stream: true,
             }),
         });
