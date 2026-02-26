@@ -7,7 +7,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="chat-container">
+    <div id="auth-container">
+        <div id="login-form">
+            <h2>Login</h2>
+            <div id="login-errors"></div>
+            <button id="github-login-btn" class="oauth-btn">Login with GitHub</button>
+            <div style="margin: 20px 0; text-align: center; color: #666;">--- or ---</div>
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button id="login-btn">Login</button>
+            <button id="signup-btn">Sign Up</button>
+            <p id="auth-status"></p>
+        </div>
+    </div>
+    
+    <div id="chat-container" style="display: none;">
         <div id="user-pane"></div>
         <div id="splitter"></div>
         <div id="bot-pane-container">
@@ -24,11 +38,13 @@
     </div>
     <button id="settings-toggle"><</button>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="app.js"></script>
     <div id="input-container">
         <input type="text" id="user-input" placeholder="Type your message...">
         <button id="send-button">Send</button>
         <button id="clear-button">Clear</button>
+        <button id="logout-btn" style="display: none;">Logout</button>
     </div>
 </body>
 </html>

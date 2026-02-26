@@ -1,6 +1,58 @@
 /// <reference path="./types/marked.d.ts" />
 
-document.addEventListener('DOMContentLoaded', () => {
+// Authentication state
+let currentUser: any = null;
+let currentToken: string = '';
+let supabaseClient: any = null;
+let supabaseInitialized = false;
+
+// Initialize Supabase client (singleton)
+async function initSupabase() {
+    if (supabaseInitialized) return;
+    
+    try {
+        // Fetch Supabase config from backend
+        const configResponse = await fetch('/auth/github');
+        const config = await configResponse.json();
+        
+        // @ts-ignore - supabase is loaded from CDN
+        supabaseClient = supabase.createClient(
+            config.supabaseUrl,
+            config.supabaseAnonKey,
+            {
+                auth: {
+                    flowType: 'pkce',
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true,
+                    persistSession: true
+                }
+            }
+        );
+        supabaseInitialized = true;
+        return true;
+    } catch (error) {
+        console.error('Error initializing Supabase:', error);
+        return false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Supabase first
+    await initSupabase();
+    
+    const authContainer = document.getElementById('auth-container') as HTMLElement;
+    const chatContainer = document.getElementById('chat-container') as HTMLElement;
+    const loginForm = document.getElementById('login-form') as HTMLElement;
+    const emailInput = document.getElementById('email') as HTMLInputElement;
+    const passwordInput = document.getElementById('password') as HTMLInputElement;
+    const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;
+    const signupBtn = document.getElementById('signup-btn') as HTMLButtonElement;
+    const githubLoginBtn = document.getElementById('github-login-btn') as HTMLButtonElement;
+    const logoutBtn = document.getElementById('logout-btn') as HTMLButtonElement;
+    const loginErrors = document.getElementById('login-errors') as HTMLElement;
+    const authStatus = document.getElementById('auth-status') as HTMLElement;
+
+    // Chat elements
     const userPane = document.getElementById('user-pane') as HTMLElement;
     const botPane = document.getElementById('bot-pane') as HTMLElement;
     const userInput = document.getElementById('user-input') as HTMLInputElement;
@@ -11,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
     const systemMessageInput = document.getElementById('system-message') as HTMLTextAreaElement;
     const splitter = document.getElementById('splitter') as HTMLElement;
-    const chatContainer = document.getElementById('chat-container') as HTMLElement;
+    const chatContainerElement = document.getElementById('chat-container') as HTMLElement;
 
     // Bot message element for displaying responses
     let currentBotMessage: HTMLElement | null = null;
@@ -20,6 +72,40 @@ document.addEventListener('DOMContentLoaded', () => {
     let conversationHistory: Array<{ role: string; content: string }> = [];
     // System message (not part of conversation history)
     let currentSystemMessage: string = '';
+
+    // Show login form initially
+    showLoginForm();
+    //showChatInterface(); // Show chat interface for testing without auth (remove in production)
+
+    // GitHub OAuth handler
+    githubLoginBtn.addEventListener('click', async () => {
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'github',
+                options: {
+                    redirectTo: `${window.location.origin}/`,
+                }
+            });
+
+            if (error) {
+                showError(error.message || 'GitHub login failed');
+                return;
+            }
+        } catch (error) {
+            console.error('GitHub login error:', error);
+            showError('An error occurred during GitHub login');
+        }
+    });
+
+    // Check for OAuth callback and handle session
+    supabaseClient.auth.onAuthStateChange((event: string, session: any) => {
+        if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            currentToken = session.access_token;
+            authStatus.textContent = `Welcome, ${currentUser.user_metadata?.user_name || currentUser.email}`;
+            showChatInterface();
+        }
+    });
 
     // Fetch Ollama models and populate the combobox
     async function fetchModels() {
@@ -42,10 +128,190 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    fetchModels();
+    // Show login form and hide chat
+    function showLoginForm() {
+        authContainer.style.display = 'flex';
+        chatContainer.style.display = 'none';
+        loginForm.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        settingsPane.style.display = 'none';
+        settingsToggle.style.display = 'none';
+        
+        // Hide input container
+        const inputContainer = document.getElementById('input-container');
+        if (inputContainer) {
+            inputContainer.style.display = 'none';
+        }
+    }
+
+    // Show chat interface and hide login form
+    function showChatInterface() {
+        authContainer.style.display = 'none';
+        chatContainer.style.display = 'flex';
+        logoutBtn.style.display = 'block';
+        settingsPane.style.display = 'block';
+        settingsToggle.style.display = 'block';
+        
+        // Show input container
+        const inputContainer = document.getElementById('input-container');
+        if (inputContainer) {
+            inputContainer.style.display = 'flex';
+        }
+        
+        fetchModels();
+    }
+
+    // Login event handlers
+    loginBtn?.addEventListener('click', async () => {
+        const email = emailInput?.value.trim();
+        const password = passwordInput?.value.trim();
+
+        if (!email || !password) {
+            showError('Please enter both email and password');
+            return;
+        }
+
+        try {
+            const response = await fetch('/auth/signin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            console.log('Login response:', { status: response.status, data });
+
+            if (!response.ok) {
+                showError(data.error || `Login failed (${response.status})`);
+                return;
+            }
+
+            // Store user and token
+            currentUser = data.user;
+            currentToken = data.session.access_token;
+            authStatus.textContent = `Welcome, ${currentUser.email}`;
+            showChatInterface();
+            clearLoginFields();
+        } catch (error) {
+            console.error('Login error:', error);
+            showError('An error occurred during login');
+        }
+    });
+
+    // Signup event handler
+    signupBtn?.addEventListener('click', async () => {
+        const email = emailInput?.value.trim();
+        const password = passwordInput?.value.trim();
+
+        if (!email || !password) {
+            showError('Please enter both email and password');
+            return;
+        }
+
+        try {
+            const response = await fetch('/auth/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                showError(data.error || 'Signup failed');
+                return;
+            }
+
+            // If there's no session, email confirmation is required
+            if (!data.session) {
+                showError(data.message || 'Signup successful! Please check your email to confirm your account.');
+                clearLoginFields();
+                return;
+            }
+
+            // Store user and token
+            currentUser = data.user;
+            currentToken = data.session.access_token;
+            authStatus.textContent = `Welcome, ${currentUser.email}`;
+            showChatInterface();
+            clearLoginFields();
+        } catch (error) {
+            console.error('Signup error:', error);
+            showError('An error occurred during signup');
+        }
+    });
+
+    // Logout handler
+    logoutBtn?.addEventListener('click', async () => {
+        try {
+            // Sign out from Supabase on the client
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
+            }
+
+            // Sign out from backend
+            const response = await fetch('/auth/signout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`,
+                },
+            });
+
+            // Clear state regardless of response
+            currentUser = null;
+            currentToken = '';
+            
+            // Clear conversation history and chat UI
+            conversationHistory = [];
+            userPane.innerHTML = '';
+            botPane.innerHTML = '';
+            userInput.value = '';
+            systemMessageInput.value = '';
+            currentSystemMessage = '';
+            
+            // Show login form
+            showLoginForm();
+            authStatus.textContent = '';
+            
+            if (!response.ok) {
+                console.warn('Backend logout response not ok:', response.status);
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Still consider it a logout on client even if server fails
+            currentUser = null;
+            currentToken = '';
+            conversationHistory = [];
+            userPane.innerHTML = '';
+            botPane.innerHTML = '';
+            showLoginForm();
+            authStatus.textContent = '';
+            showError('Logged out (server error, but session cleared locally)');
+        }
+    });
+
+    // Clear login form fields
+    function clearLoginFields() {
+        emailInput.value = '';
+        passwordInput.value = '';
+    }
+
+    // Show error message
+    function showError(message: string) {
+        loginErrors.textContent = message;
+        setTimeout(() => {
+            loginErrors.textContent = '';
+        }, 5000);
+    }
 
     // Settings toggle
-    settingsToggle.addEventListener('click', () => {
+    settingsToggle?.addEventListener('click', () => {
         settingsPane.classList.toggle('expanded');
         if (settingsPane.classList.contains('expanded')) {
             settingsToggle.textContent = '>';
@@ -55,8 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Event listeners
-    sendButton.addEventListener('click', sendMessage);
-    userInput.addEventListener('keypress', (e: KeyboardEvent) => {
+    sendButton?.addEventListener('click', sendMessage);
+    userInput?.addEventListener('keypress', (e: KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
@@ -65,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Draggable splitter
     let isDragging = false;
-    splitter.addEventListener('mousedown', (e: MouseEvent) => {
+    splitter?.addEventListener('mousedown', (e: MouseEvent) => {
         isDragging = true;
         document.body.style.cursor = 'col-resize';
         e.preventDefault();
@@ -73,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
         if (!isDragging) return;
-        const containerRect = chatContainer.getBoundingClientRect();
+        const containerRect = chatContainerElement.getBoundingClientRect();
         const userPaneWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
         const botPaneWidth = 100 - userPaneWidth;
         if (userPaneWidth > 20 && userPaneWidth < 80) {
@@ -89,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Clear conversation
-    clearButton.addEventListener('click', () => {
+    clearButton?.addEventListener('click', () => {
         userPane.innerHTML = '';
         botPane.innerHTML = '';
         conversationHistory = [];
@@ -128,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`,
                 },
                 body: JSON.stringify(requestBody),
             });
@@ -228,4 +495,51 @@ document.addEventListener('DOMContentLoaded', () => {
         pane.scrollTop = pane.scrollHeight;
     }
 
+    // Check for existing session on page load (handles OAuth callback)
+    async function checkExistingSession() {
+        try {
+            // Initialize Supabase first
+            const initialized = await initSupabase();
+            if (!initialized) {
+                return;
+            }
+
+            // Check for error in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            const errorDescription = urlParams.get('error_description');
+
+            if (error) {
+                showError(`GitHub login failed: ${errorDescription || error}`);
+                // Clear the URL parameters
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return;
+            }
+
+            // Get session from Supabase (handles OAuth callback automatically with detectSessionInUrl)
+            const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+            if (sessionError) {
+                console.error('Error getting session:', sessionError);
+                return;
+            }
+
+            if (session) {
+                // User is logged in
+                currentUser = session.user;
+                currentToken = session.access_token;
+                authStatus.textContent = `Welcome, ${currentUser.email || currentUser.user_metadata?.user_name || 'GitHub User'}`;
+                showChatInterface();
+                // Clear any URL parameters after successful auth
+                if (window.location.search) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking session:', error);
+        }
+    }
+
+    // Run session check on page load
+    checkExistingSession();
 });
