@@ -11,23 +11,33 @@ let supabaseInitialized = false;
 // code relative and still override the origin via an env file.
 let serverHost: string = '';
 
-// Backend URL - can be overridden via window.BACKEND_URL
-// Note: in 2-host deployments, requests go through the frontend proxy, not directly to backendUrl
+// Backend URL - injected by server or set via environment variable
+// For multi-host deployments, this should point to your backend server
 let backendUrl: string = (window as any).BACKEND_URL || 'http://localhost:5000';
+console.log('Backend URL:', backendUrl);
 
 async function loadConfig() {
     try {
-        const resp = await fetch('/config');
+        const url = `${backendUrl}/config`;
+        console.log('Loading config from:', url);
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            console.error(`Config request failed: ${resp.status} ${resp.statusText}`);
+            return;
+        }
         const cfg = await resp.json();
         serverHost = cfg.apiHost || '';
+        console.log('Config loaded:', cfg);
     } catch (e) {
         console.error('Failed to load config:', e);
     }
 }
 
 function api(path: string, options?: RequestInit) {
-    // Use relative path to go through frontend proxy (works on any host)
-    return fetch(path, options);
+    // Always use backendUrl for API calls (required for multi-host deployments)
+    const url = `${backendUrl}${path}`;
+    console.log(`API request: ${options?.method || 'GET'} ${url}`);
+    return fetch(url, options);
 }
 
 // Initialize Supabase client (singleton)
@@ -415,7 +425,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 messages: conversationHistory,
                 systemMessage: currentSystemMessage,
             };
-            const response = await fetch('/chat', {
+            const chatUrl = `${backendUrl}/chat`;
+            const response = await fetch(chatUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
