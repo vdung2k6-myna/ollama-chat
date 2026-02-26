@@ -2,6 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { Readable } from 'stream';
 
 dotenv.config();
 
@@ -9,6 +10,59 @@ const app: Express = express();
 const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
 const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || '3000');
 const PUBLIC_DIR = path.join(__dirname, '../public');
+
+// Proxy API requests to backend (so /chat, /auth, /models, /config, /api go to BACKEND_URL)
+const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api'];
+app.use(async (req: Request, res: Response, next) => {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    if (!proxyPrefixes.some(p => req.path.startsWith(p))) {
+        return next();
+    }
+
+    const target = backendUrl + req.originalUrl;
+    try {
+        const headers: any = { ...req.headers };
+        delete headers.host;
+
+        const method = req.method;
+        const fetchOptions: any = { method, headers };
+
+        if (method !== 'GET' && method !== 'HEAD') {
+            const chunks: Buffer[] = [];
+            for await (const chunk of req) {
+                chunks.push(Buffer.from(chunk));
+            }
+            if (chunks.length > 0) {
+                fetchOptions.body = Buffer.concat(chunks);
+            }
+        }
+
+        const backendResp = await fetch(target, fetchOptions as any);
+        res.status(backendResp.status);
+        backendResp.headers.forEach((value, name) => res.setHeader(name, value));
+        if (backendResp.body) {
+            // backendResp.body can be a Node Readable or a WHATWG ReadableStream
+            const bodyAny: any = backendResp.body;
+            if (typeof bodyAny.pipe === 'function') {
+                bodyAny.pipe(res);
+            } else if (typeof (Readable as any).fromWeb === 'function' && typeof bodyAny.getReader === 'function') {
+                // Convert web ReadableStream to Node Readable
+                const nodeStream = (Readable as any).fromWeb(bodyAny);
+                nodeStream.pipe(res);
+            } else {
+                // Fallback: collect text and send
+                const text = await backendResp.text();
+                res.send(text);
+            }
+        } else {
+            const text = await backendResp.text();
+            res.send(text);
+        }
+    } catch (err) {
+        console.error('Proxy error:', err);
+        res.status(502).send('Bad Gateway');
+    }
+});
 
 // Serve static files from public directory
 app.use(express.static(PUBLIC_DIR));

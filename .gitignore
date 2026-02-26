@@ -63,3 +63,6 @@ out/
 public/app.js.map
 public/app.js
 public/app.d.ts
+public/frontend-server.d.ts
+public/frontend-server.js
+public/frontend-server.js.map

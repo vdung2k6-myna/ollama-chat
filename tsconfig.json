@@ -16,7 +16,6 @@
   },
   "include": [
     "src/index.ts",
-    "src/frontend-server.ts"
   ],
   "exclude": [
     "node_modules",
