@@ -15,7 +15,8 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/index.ts"
+    "src/index.ts",
+    "src/frontend-server.ts"
   ],
   "exclude": [
     "node_modules",

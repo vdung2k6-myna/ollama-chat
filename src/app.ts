@@ -6,13 +6,36 @@ let currentToken: string = '';
 let supabaseClient: any = null;
 let supabaseInitialized = false;
 
+// hold an optional host returned by the server. when set the
+// value will be prepended to every API request; this lets us keep the
+// code relative and still override the origin via an env file.
+let serverHost: string = '';
+
+// Backend URL - can be overridden via window.BACKEND_URL
+let backendUrl: string = (window as any).BACKEND_URL || 'http://localhost:5000';
+
+async function loadConfig() {
+    try {
+        const resp = await fetch(`${backendUrl}/config`);
+        const cfg = await resp.json();
+        serverHost = cfg.apiHost || '';
+    } catch (e) {
+        console.error('Failed to load config:', e);
+    }
+}
+
+function api(path: string, options?: RequestInit) {
+    const url = serverHost ? `${serverHost}${path}` : path;
+    return fetch(url, options);
+}
+
 // Initialize Supabase client (singleton)
 async function initSupabase() {
     if (supabaseInitialized) return;
     
     try {
         // Fetch Supabase config from backend
-        const configResponse = await fetch('/auth/github');
+        const configResponse = await api('/auth/github');
         const config = await configResponse.json();
         
         // @ts-ignore - supabase is loaded from CDN
@@ -37,7 +60,8 @@ async function initSupabase() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Supabase first
+    // Load runtime config and then initialize Supabase
+    await loadConfig();
     await initSupabase();
     
     const authContainer = document.getElementById('auth-container') as HTMLElement;
@@ -110,7 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Fetch Ollama models and populate the combobox
     async function fetchModels() {
         try {
-            const response = await fetch('/models');
+            const response = await api('/models');
             const data = await response.json();
             if (data.models) {
                 data.models.forEach((model: { name: string }) => {
@@ -172,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const response = await fetch('/auth/signin', {
+            const response = await api('/auth/signin', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -212,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const response = await fetch('/auth/signup', {
+            const response = await api('/auth/signup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -255,7 +279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // Sign out from backend
-            const response = await fetch('/auth/signout', {
+            const response = await api('/auth/signout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

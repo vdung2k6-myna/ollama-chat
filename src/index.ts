@@ -10,6 +10,7 @@ const app: Express = express();
 const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://myna.ddns.net:8080';
 const HTTP_LOCAL_HOST = process.env.HTTP_LOCAL_HOST || 'http://localhost';
 const HTTP_LOCAL_PORT = process.env.HTTP_LOCAL_PORT || 3000;
+const SERVER_HOST = `${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}`;
 
 // Initialize Supabase client with cookie options for PKCE flow
 const supabaseUrl = process.env.SUPABASE_URL || '';
@@ -25,7 +26,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 app.use(express.json());
 app.use(cors());
-app.use(express.static('public'));
 
 app.get('/models', async (req: Request, res: Response) => {
     try {
@@ -154,12 +154,22 @@ app.get('/auth/github', async (req: Request, res: Response) => {
         res.json({ 
             supabaseUrl: supabaseUrl,
             supabaseAnonKey: supabaseAnonKey,
-            redirectTo: `${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}/`
+            redirectTo: '/'
         });
     } catch (error) {
         console.error('Error in GitHub auth:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// simple configuration endpoint used by the front-end to pick up
+// environment-specific values such as the server host.  the client
+// will load this once on startup and then prepend it to subsequent
+// API calls if set.
+app.get('/config', (req: Request, res: Response) => {
+    res.json({
+        apiHost: SERVER_HOST
+    });
 });
 
 app.post('/chat', async (req: Request, res: Response) => {
