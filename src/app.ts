@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wait for config to be loaded from config.json
     let retries = 0;
     while (!(window as any).configLoaded && retries < 50) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 500));
         retries++;
     }
     
