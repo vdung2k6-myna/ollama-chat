@@ -6,20 +6,31 @@
     <title>Ollama Chat</title>
     <link rel="stylesheet" href="style.css">
     <script>
-        // Backend URL configuration for multi-host deployments
-        // Try multiple sources: 1) window var (pre-injected), 2) localStorage (user-set), 3) env var (build-time or runtime)
-        if (!window.BACKEND_URL) {
-            // Check localStorage for user-set backend URL
-            const stored = localStorage.getItem('BACKEND_URL');
-            if (stored) {
-                window.BACKEND_URL = stored;
-            } else {
-                // Use environment variable or default
-                // This can be injected at build time or by a wrapper script
+        // Load backend URL from config.json (can be updated after deployment)
+        let configLoaded = false;
+        
+        async function initBackendUrl() {
+            try {
+                const configResponse = await fetch('./config.json');
+                if (!configResponse.ok) throw new Error('config.json not found');
+                
+                const config = await configResponse.json();
+                if (config.backendUrl) {
+                    window.BACKEND_URL = config.backendUrl;
+                    console.log('BACKEND_URL loaded from config.json:', window.BACKEND_URL);
+                } else {
+                    throw new Error('backendUrl not in config.json');
+                }
+            } catch (err) {
+                console.warn('Failed to load config.json, using default:', err);
                 window.BACKEND_URL = 'http://localhost:5000';
+            } finally {
+                configLoaded = true;
             }
         }
-        console.log('BACKEND_URL configured as:', window.BACKEND_URL);
+        
+        // Load config before anything else
+        initBackendUrl();
     </script>
 </head>
 <body>

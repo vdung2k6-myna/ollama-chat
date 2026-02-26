@@ -71,6 +71,19 @@ async function initSupabase() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Wait for config to be loaded from config.json
+    let retries = 0;
+    while (!(window as any).configLoaded && retries < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+    }
+    
+    if (!(window as any).configLoaded) {
+        console.warn('Config load timeout, using default backendUrl');
+    }
+    
+    console.log('DOMContentLoaded - BACKEND_URL is:', backendUrl);
+    
     // Load runtime config and then initialize Supabase
     await loadConfig();
     await initSupabase();
