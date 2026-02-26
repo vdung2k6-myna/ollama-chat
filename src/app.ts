@@ -25,7 +25,8 @@ async function loadConfig() {
 }
 
 function api(path: string, options?: RequestInit) {
-    const url = serverHost ? `${serverHost}${path}` : path;
+    // Always use backendUrl for API calls, not serverHost
+    const url = `${backendUrl}${path}`;
     return fetch(url, options);
 }
 

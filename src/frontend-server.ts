@@ -23,12 +23,16 @@ app.use((req: Request, res: Response) => {
         return res.status(404).send('index.html not found');
     }
     
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            console.error('Error sending index.html:', err);
-            res.status(500).send('Error loading page');
-        }
-    });
+    // Read and inject BACKEND_URL into HTML
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    let html = fs.readFileSync(indexPath, 'utf-8');
+    html = html.replace(
+        '<script>\n        // Set backend URL - configure via window.BACKEND_URL or it defaults to http://localhost:5000\n        window.BACKEND_URL = window.BACKEND_URL || \'http://localhost:5000\';\n    </script>',
+        `<script>\n        window.BACKEND_URL = '${backendUrl}';\n    </script>`
+    );
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
 });
 
 app.listen(FRONTEND_PORT, () => {
