@@ -12,11 +12,12 @@ let supabaseInitialized = false;
 let serverHost: string = '';
 
 // Backend URL - can be overridden via window.BACKEND_URL
+// Note: in 2-host deployments, requests go through the frontend proxy, not directly to backendUrl
 let backendUrl: string = (window as any).BACKEND_URL || 'http://localhost:5000';
 
 async function loadConfig() {
     try {
-        const resp = await fetch(`${backendUrl}/config`);
+        const resp = await fetch('/config');
         const cfg = await resp.json();
         serverHost = cfg.apiHost || '';
     } catch (e) {
@@ -25,9 +26,8 @@ async function loadConfig() {
 }
 
 function api(path: string, options?: RequestInit) {
-    // Always use backendUrl for API calls, not serverHost
-    const url = `${backendUrl}${path}`;
-    return fetch(url, options);
+    // Use relative path to go through frontend proxy (works on any host)
+    return fetch(path, options);
 }
 
 // Initialize Supabase client (singleton)

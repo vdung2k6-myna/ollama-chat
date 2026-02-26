@@ -10,16 +10,24 @@ const app: Express = express();
 const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
 const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || '3000');
 const PUBLIC_DIR = path.join(__dirname, '../public');
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+
+// Log initial configuration
+console.log('Frontend Server Configuration:');
+console.log(`  Frontend: ${FRONTEND_HOST}:${FRONTEND_PORT}`);
+console.log(`  Backend URL: ${BACKEND_URL}`);
+console.log(`  Static files: ${PUBLIC_DIR}`);
 
 // Proxy API requests to backend (so /chat, /auth, /models, /config, /api go to BACKEND_URL)
 const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api'];
 app.use(async (req: Request, res: Response, next) => {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
     if (!proxyPrefixes.some(p => req.path.startsWith(p))) {
         return next();
     }
 
-    const target = backendUrl + req.originalUrl;
+    const target = BACKEND_URL + req.originalUrl;
+    console.log(`[PROXY] ${req.method} ${req.originalUrl} -> ${target}`);
+    
     try {
         const headers: any = { ...req.headers };
         delete headers.host;
@@ -38,8 +46,11 @@ app.use(async (req: Request, res: Response, next) => {
         }
 
         const backendResp = await fetch(target, fetchOptions as any);
+        console.log(`[PROXY] Response: ${backendResp.status}`);
+        
         res.status(backendResp.status);
         backendResp.headers.forEach((value, name) => res.setHeader(name, value));
+        
         if (backendResp.body) {
             // backendResp.body can be a Node Readable or a WHATWG ReadableStream
             const bodyAny: any = backendResp.body;
@@ -59,8 +70,13 @@ app.use(async (req: Request, res: Response, next) => {
             res.send(text);
         }
     } catch (err) {
-        console.error('Proxy error:', err);
-        res.status(502).send('Bad Gateway');
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[PROXY ERROR] ${target}:`, errorMsg);
+        res.status(502).json({ 
+            error: 'Bad Gateway',
+            message: `Could not reach backend at ${BACKEND_URL}`,
+            details: errorMsg
+        });
     }
 });
 
