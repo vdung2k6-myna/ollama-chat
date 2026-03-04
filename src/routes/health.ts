@@ -18,7 +18,17 @@ function healthHandler(req: Request, res: Response): void {
   res.status(200).json(healthCheck);
 }
 
-router.get('/health', healthHandler);
+router.get('/', healthHandler);
+
+// Handle preflight OPTIONS requests for health endpoints
+router.options('/', (_req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', config.security.corsOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(200).end();
+});
 
 // Ready check endpoint (for Kubernetes)
 async function readyHandler(req: Request, res: Response): Promise<void> {
@@ -94,5 +104,33 @@ function metricsHandler(req: Request, res: Response): void {
 }
 
 router.get('/metrics', metricsHandler);
+
+// Handle preflight OPTIONS requests for all health endpoints
+router.options('/ready', (_req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', config.security.corsOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(200).end();
+});
+
+router.options('/live', (_req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', config.security.corsOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(200).end();
+});
+
+router.options('/metrics', (_req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', config.security.corsOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.status(200).end();
+});
 
 export default router;

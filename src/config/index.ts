@@ -7,7 +7,7 @@ dotenv.config();
 // Configuration schema validation
 const configSchema = Joi.object({
   // Server configuration
-  PORT: Joi.number().default(3000),
+  HTTP_LOCAL_PORT: Joi.number().default(3000),
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   
   // Ollama configuration

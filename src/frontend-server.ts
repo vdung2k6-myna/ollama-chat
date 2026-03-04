@@ -83,8 +83,8 @@ logger.info('Frontend Server Configuration:', {
     staticFiles: PUBLIC_DIR
 });
 
-// Proxy API requests to backend (so /chat, /auth, /models, /config, /api go to BACKEND_URL)
-const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api'];
+// Proxy API requests to backend (so /chat, /auth, /models, /config, /api, /health go to BACKEND_URL)
+const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api', '/health'];
 app.use(async (req: Request, res: Response, next) => {
     if (!proxyPrefixes.some(p => req.path.startsWith(p))) {
         return next();

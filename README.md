@@ -190,7 +190,28 @@ The project can be containerized with separate containers for backend and fronte
 - `POST /chat` - Chat with streaming responses
 
 ### Health
-- `GET /health` - Health check endpoint
+- `GET /health` - Basic health check endpoint
+- `GET /health/ready` - Readiness check (includes Ollama connectivity)
+- `GET /health/live` - Liveness check for Kubernetes
+- `GET /health/metrics` - System metrics endpoint
+
+### Health Check Endpoints
+
+The application provides comprehensive health check endpoints accessible from both backend and frontend:
+
+**Backend Server (port 5000):**
+- `GET http://localhost:5000/health` - Basic health status
+- `GET http://localhost:5000/health/ready` - Readiness check with Ollama connectivity
+- `GET http://localhost:5000/health/live` - Liveness check for Kubernetes deployments
+- `GET http://localhost:5000/health/metrics` - System resource metrics
+
+**Frontend Server (port 3000):**
+- `GET http://localhost:3000/health` - Proxied health check
+- `GET http://localhost:3000/health/ready` - Proxied readiness check
+- `GET http://localhost:3000/health/live` - Proxied liveness check
+- `GET http://localhost:3000/health/metrics` - Proxied metrics endpoint
+
+All health endpoints include proper CORS headers and are accessible from frontend applications for monitoring and health checks.
 
 ## Troubleshooting
 

@@ -27,6 +27,9 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
 });
 
+// Health check routes (no authentication required) - register first
+app.use('/health', healthRoutes);
+
 // Security middleware (applied first)
 app.use(securityHeaders);
 app.use(corsMiddleware);
@@ -41,9 +44,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Input sanitization
 app.use(sanitizeInput);
-
-// Health check routes (no authentication required)
-app.use('/health', healthRoutes);
 
 app.get('/models', async (_req: Request, res: Response) => {
     try {
