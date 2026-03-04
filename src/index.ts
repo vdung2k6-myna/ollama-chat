@@ -175,7 +175,7 @@ app.get('/auth/github', async (_req: Request, res: Response) => {
         return res.json({ 
             supabaseUrl: supabaseUrl,
             supabaseAnonKey: supabaseAnonKey,
-            redirectTo: '/'
+            redirectTo: `${config.frontend.host}:${config.frontend.port}/`
         });
     } catch (error) {
         console.error('Error in GitHub auth:', error);
