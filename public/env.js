@@ -1,4 +1,4 @@
 // Auto-generated environment variables
 window.ENV = {
-  BACKEND_URL: 'http://localhost:5000'
+  BACKEND_URL: 'http://localhost:8000'
 };

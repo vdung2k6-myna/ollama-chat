@@ -66,3 +66,4 @@ public/app.d.ts
 public/frontend-server.d.ts
 public/frontend-server.js
 public/frontend-server.js.map
+public/env.js

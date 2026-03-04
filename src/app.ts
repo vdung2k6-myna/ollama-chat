@@ -27,23 +27,6 @@ if (!backendUrl) {
 }
 console.log('Backend URL:', backendUrl);
 
-async function loadConfig() {
-    try {
-        const url = `${backendUrl}/config`;
-        console.log('Loading config from:', url);
-        const resp = await fetch(url);
-        if (!resp.ok) {
-            console.error(`Config request failed: ${resp.status} ${resp.statusText}`);
-            return;
-        }
-        const cfg = await resp.json();
-        serverHost = cfg.apiHost || '';
-        console.log('Config loaded:', cfg);
-    } catch (e) {
-        console.error('Failed to load config:', e);
-    }
-}
-
 function api(path: string, options?: RequestInit) {
     // Always use backendUrl for API calls (required for multi-host deployments)
     const url = `${backendUrl}${path}`;
