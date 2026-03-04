@@ -9,7 +9,6 @@ let supabaseInitialized = false;
 // hold an optional host returned by the server. when set the
 // value will be prepended to every API request; this lets us keep the
 // code relative and still override the origin via an env file.
-let serverHost: string = '';
 
 // Backend URL - loaded from environment variables via env.js (required)
 // For multi-host deployments, this should point to your backend server
@@ -110,7 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // GitHub OAuth handler
     githubLoginBtn.addEventListener('click', async () => {
         try {
-            const { data, error } = await supabaseClient.auth.signInWithOAuth({
+            const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
                     redirectTo: '/',

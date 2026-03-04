@@ -5,13 +5,18 @@ import fs from 'fs';
 import { Readable } from 'stream';
 import cors from 'cors';
 
+// Import our new middleware and utilities
+import { config } from './config';
+import { logger } from './utils/logger';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { corsMiddleware, securityHeaders, rateLimitMiddleware, requestLogger, requestSizeLimit, sanitizeHeaders } from './middleware/security';
+import { sanitizeInput } from './middleware/validation';
+
 dotenv.config();
 
 const app: Express = express();
-const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
-const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || '3000');
 const PUBLIC_DIR = path.join(__dirname, '../public');
-const BACKEND_URL = process.env.BACKEND_URL;
+const BACKEND_URL = process.env['BACKEND_URL'];
 
 // Configure CORS for frontend server
 const corsOptions = {
@@ -21,9 +26,13 @@ const corsOptions = {
         
         // List of allowed origins
         const allowedOrigins = [
-            `${FRONTEND_HOST}:${FRONTEND_PORT}`,
+            `${config.frontend.host}:${config.frontend.port}`,
             'https://deep-chat-ui.onrender.com',  // Add the render.com domain
             'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
+            'https://github.com',  // Allow GitHub OAuth redirects
+            'https://*.github.com',  // Allow GitHub subdomains
+            'https://supabase.co',  // Allow Supabase connections
+            'https://*.supabase.co',  // Allow Supabase subdomains
         ];
         
         // Allow any subdomain of onrender.com for flexibility
@@ -34,7 +43,7 @@ const corsOptions = {
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            console.log(`CORS blocked request from origin: ${origin}`);
+            logger.warn(`CORS blocked request from origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -45,29 +54,33 @@ const corsOptions = {
     optionsSuccessStatus: 200
 };
 
+// Security middleware (applied first)
+app.use(securityHeaders);
 app.use(cors(corsOptions));
+app.use(rateLimitMiddleware);
+app.use(requestLogger);
+app.use(requestSizeLimit);
+app.use(sanitizeHeaders);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Input sanitization
+app.use(sanitizeInput);
 
 // Validate required configuration
 if (!BACKEND_URL) {
-    console.error('ERROR: BACKEND_URL environment variable is required');
-    console.error('Please set BACKEND_URL in your .env file');
+    logger.error('ERROR: BACKEND_URL environment variable is required');
+    logger.error('Please set BACKEND_URL in your .env file');
     process.exit(1);
 }
 
 // Log initial configuration
-console.log('Frontend Server Configuration:');
-console.log(`  Frontend: ${FRONTEND_HOST}:${FRONTEND_PORT}`);
-console.log(`  Backend URL: ${BACKEND_URL}`);
-console.log(`  Static files: ${PUBLIC_DIR}`);
-
-// Handle preflight OPTIONS requests for all routes
-app.options('*', (req: Request, res: Response) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    res.status(200).end();
+logger.info('Frontend Server Configuration:', {
+    frontend: `${config.frontend.host}:${config.frontend.port}`,
+    backendUrl: BACKEND_URL,
+    staticFiles: PUBLIC_DIR
 });
 
 // Proxy API requests to backend (so /chat, /auth, /models, /config, /api go to BACKEND_URL)
@@ -135,6 +148,9 @@ app.use(async (req: Request, res: Response, next) => {
 // Serve static files from public directory
 app.use(express.static(PUBLIC_DIR));
 
+// Serve node_modules for locally installed libraries
+app.use('/node_modules', express.static(path.join(__dirname, '../node_modules')));
+
 // Serve index.html for all other routes (SPA support)
 app.use((req: Request, res: Response) => {
     const indexPath = path.join(PUBLIC_DIR, 'index.html');
@@ -146,9 +162,40 @@ app.use((req: Request, res: Response) => {
     }
     
     res.sendFile(indexPath);
+    return;
 });
 
-app.listen(FRONTEND_PORT, () => {
-    console.log(`Frontend server running at ${FRONTEND_HOST}:${FRONTEND_PORT}`);
-    console.log(`Serving files from: ${PUBLIC_DIR}`);
+// Error handling middleware (must be last)
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// Start server
+app.listen(config.frontend.port, () => {
+    logger.info(`Frontend server started successfully`, {
+        port: config.frontend.port,
+        environment: config.server.nodeEnv,
+        backendUrl: BACKEND_URL
+    });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM received, shutting down gracefully');
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    logger.info('SIGINT received, shutting down gracefully');
+    process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
 });

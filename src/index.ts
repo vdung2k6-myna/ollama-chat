@@ -1,21 +1,23 @@
 import express, { Express, Request, Response } from 'express';
 import fetch from 'node-fetch';
-import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+
+// Import our new middleware and utilities
+import { config } from './config';
+import { logger } from './utils/logger';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { corsMiddleware, securityHeaders, rateLimitMiddleware, requestLogger, requestSizeLimit, sanitizeHeaders } from './middleware/security';
+import { sanitizeInput } from './middleware/validation';
+import healthRoutes from './routes/health';
 
 dotenv.config();
 
 const app: Express = express();
-const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://myna.ddns.net:8080';
-const HTTP_LOCAL_HOST = process.env.HTTP_LOCAL_HOST || 'http://localhost';
-const HTTP_LOCAL_PORT = process.env.HTTP_LOCAL_PORT || 8000;
-const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
-const FRONTEND_PORT = process.env.FRONTEND_PORT || 3000;
 
 // Initialize Supabase client with cookie options for PKCE flow
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env['SUPABASE_URL'] || '';
+const supabaseAnonKey = process.env['SUPABASE_ANON_KEY'] || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         flowType: 'pkce',
@@ -25,54 +27,34 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
 });
 
-app.use(express.json());
+// Security middleware (applied first)
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use(rateLimitMiddleware);
+app.use(requestLogger);
+app.use(requestSizeLimit);
+app.use(sanitizeHeaders);
 
-// Configure CORS to allow requests from frontend domains
-const corsOptions = {
-    origin: function (origin: string | undefined, callback: any) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // List of allowed origins
-        const allowedOrigins = [
-            `${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}`,
-            `${FRONTEND_HOST}:${FRONTEND_PORT}`,
-            'https://deep-chat-ui.onrender.com',  // Add the render.com domain
-            'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
-            'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain (duplicate for safety)
-        ];
-        
-        // Allow any subdomain of onrender.com for flexibility
-        if (origin.includes('.onrender.com')) {
-            return callback(null, true);
-        }
-        
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.log(`CORS blocked request from origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],  // Allow all HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],  // Allow common headers
-    exposedHeaders: ['Access-Control-Allow-Origin'],  // Expose CORS headers
-    optionsSuccessStatus: 200  // For legacy browser support
-};
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(cors(corsOptions));
+// Input sanitization
+app.use(sanitizeInput);
 
-app.get('/models', async (req: Request, res: Response) => {
+// Health check routes (no authentication required)
+app.use('/health', healthRoutes);
+
+app.get('/models', async (_req: Request, res: Response) => {
     try {
-        const response = await fetch(`${OLLAMA_API_URL}/api/tags`);
+        const response = await fetch(`${config.ollama.baseUrl}/api/tags`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         res.json(data);
     } catch (error) {
-        console.error('Error fetching models:', error);
+        logger.error('Error fetching models:', error);
         res.status(500).send('Error fetching models from Ollama');
     }
 });
@@ -105,10 +87,10 @@ app.post('/auth/signup', async (req: Request, res: Response) => {
             });
         }
 
-        res.json({ user: data.user, session: data.session });
+        return res.json({ user: data.user, session: data.session });
     } catch (error) {
         console.error('Error in signup:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -133,8 +115,7 @@ app.post('/auth/signin', async (req: Request, res: Response) => {
                 return res.status(400).json({ error: 'Signin failed: Invalid response from Supabase' });
             }
 
-            res.json({ user: data.user, session: data.session });
-            return;
+            return res.json({ user: data.user, session: data.session });
         }
 
         // Otherwise, return error
@@ -142,23 +123,23 @@ app.post('/auth/signin', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Email and password are required' });
     } catch (error) {
         console.error('Error in signin:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-app.post('/auth/signout', async (req: Request, res: Response) => {
+app.post('/auth/signout', async (_req: Request, res: Response) => {
     try {
-        const { access_token } = req.body;
+        const { access_token: _access_token } = _req.body;
         const { error } = await supabase.auth.signOut();
 
         if (error) {
             return res.status(400).json({ error: error.message });
         }
 
-        res.json({ message: 'Successfully signed out' });
+        return res.json({ message: 'Successfully signed out' });
     } catch (error) {
         console.error('Error in signout:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -176,34 +157,34 @@ app.get('/auth/user', async (req: Request, res: Response) => {
             return res.status(401).json({ error: error.message });
         }
 
-        res.json({ user: data.user });
+        return res.json({ user: data.user });
     } catch (error) {
         console.error('Error getting user:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // GitHub OAuth endpoint - returns Supabase credentials for client-side auth
-app.get('/auth/github', async (req: Request, res: Response) => {
+app.get('/auth/github', async (_req: Request, res: Response) => {
     try {
         // Use the same CORS configuration as other endpoints
         // Don't override with wildcard origin since we need credentials
         // The global CORS middleware will handle this
         
         // Return Supabase credentials so frontend can handle OAuth
-        res.json({ 
+        return res.json({ 
             supabaseUrl: supabaseUrl,
             supabaseAnonKey: supabaseAnonKey,
             redirectTo: '/'
         });
     } catch (error) {
         console.error('Error in GitHub auth:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Handle preflight OPTIONS requests for all routes
-app.options('*', (req: Request, res: Response) => {
+app.options('*', (_req: Request, res: Response) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
@@ -231,7 +212,7 @@ app.post('/chat', async (req: Request, res: Response) => {
             chatMessages.push({ role: 'user', content: message });
         }
 
-        const response = await fetch(`${OLLAMA_API_URL}/api/chat`, {
+        const response = await fetch(`${config.ollama.baseUrl}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -286,12 +267,51 @@ app.post('/chat', async (req: Request, res: Response) => {
             }
             res.end();
         });
+        
+        // Return undefined to satisfy TypeScript - the response is handled by event listeners
+        return;
     } catch (error) {
         console.error('Error in /chat endpoint:', error);
-        res.status(500).send('Error connecting to Ollama API');
+        return res.status(500).send('Error connecting to Ollama API');
     }
 });
 
-app.listen(HTTP_LOCAL_PORT, () => {
-    console.log(`Server is running on ${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}`);
+// Error handling middleware (must be last)
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// Start server
+app.listen(config.server.port, () => {
+    logger.info(`Server started successfully`, {
+        port: config.server.port,
+        environment: config.server.nodeEnv,
+        ollamaUrl: config.ollama.baseUrl
+    });
+    
+    // Log important configuration info
+    if (config.server.nodeEnv === 'production') {
+        logger.warn('Running in production mode - ensure proper environment variables are set');
+    }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    logger.info('SIGTERM received, shutting down gracefully');
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    logger.info('SIGINT received, shutting down gracefully');
+    process.exit(0);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
 });

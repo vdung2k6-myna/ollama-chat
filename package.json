@@ -4,8 +4,8 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node scripts/generate-env.js && tsc && tsc -p tsconfig.frontend.json",
-    "build:backend": "tsc",
+    "build": "node scripts/generate-env.js && tsc -p tsconfig.backend.json && tsc -p tsconfig.frontend.json",
+    "build:backend": "tsc -p tsconfig.backend.json",
     "build:frontend": "node scripts/generate-env.js && tsc -p tsconfig.frontend.json",
     "start": "node dist/index.js",
     "start:frontend": "node dist/frontend-server.js",
@@ -19,17 +19,24 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.93.3",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "@supabase/supabase-js": "^2.98.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "express": "^4.18.2",
-    "node-fetch": "^2.7.0"
+    "express-rate-limit": "^8.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "joi": "^18.0.2",
+    "marked": "^17.0.3",
+    "node-fetch": "^2.7.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/node": "^25.2.0",
     "@types/node-fetch": "^2.6.13",
+    "@types/winston": "^2.4.4",
     "concurrently": "^8.2.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

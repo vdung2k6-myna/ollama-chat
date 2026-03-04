@@ -12,14 +12,40 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    
+    // Enhanced strict settings
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    
+    // Additional safety checks
+    "noFallthroughCasesInSwitch": true,
+    
+    // Module resolution
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@config/*": ["src/config/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@utils/*": ["src/utils/*"],
+      "@routes/*": ["src/routes/*"]
+    }
   },
   "include": [
-    "src/index.ts",
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "public"
+    "public",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }
