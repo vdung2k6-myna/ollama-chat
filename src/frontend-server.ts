@@ -148,22 +148,6 @@ app.use(async (req: Request, res: Response, next) => {
 // Serve static files from public directory
 app.use(express.static(PUBLIC_DIR));
 
-// Serve node_modules for locally installed libraries with proper MIME types
-app.use('/node_modules', express.static(path.join(__dirname, '../node_modules'), {
-    setHeaders: (res, path) => {
-        // More robust JavaScript file detection to fix MIME type errors
-        const pathLower = path.toLowerCase();
-        if (pathLower.endsWith('.js') || pathLower.includes('.js')) {
-            res.setHeader('Content-Type', 'application/javascript');
-        } else if (pathLower.endsWith('.css')) {
-            res.setHeader('Content-Type', 'text/css');
-        } else if (pathLower.endsWith('.json')) {
-            res.setHeader('Content-Type', 'application/json');
-        } else if (pathLower.endsWith('.map')) {
-            res.setHeader('Content-Type', 'application/json');
-        }
-    }
-}));
 
 // Serve index.html for all other routes (SPA support)
 app.use((req: Request, res: Response) => {

@@ -4,15 +4,16 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node scripts/generate-env.js && tsc -p tsconfig.backend.json && tsc -p tsconfig.frontend.json",
+    "build": "node scripts/generate-env.js && node scripts/copy-node-modules.js && tsc -p tsconfig.backend.json && tsc -p tsconfig.frontend.json",
     "build:backend": "tsc -p tsconfig.backend.json",
-    "build:frontend": "node scripts/generate-env.js && tsc -p tsconfig.frontend.json",
+    "build:frontend": "node scripts/generate-env.js && node scripts/copy-node-modules.js && tsc -p tsconfig.frontend.json",
     "start": "node dist/index.js",
     "start:frontend": "node dist/frontend-server.js",
     "dev": "node scripts/generate-env.js && concurrently \"ts-node src/index.ts\" \"ts-node src/frontend-server.ts\"",
     "dev:backend": "ts-node src/index.ts",
     "dev:frontend": "ts-node src/frontend-server.ts",
-    "generate-env": "node scripts/generate-env.js"
+    "generate-env": "node scripts/generate-env.js",
+    "copy-node-modules": "node scripts/copy-node-modules.js"
   },
   "keywords": [],
   "author": "",
