@@ -186,11 +186,9 @@ app.get('/auth/user', async (req: Request, res: Response) => {
 // GitHub OAuth endpoint - returns Supabase credentials for client-side auth
 app.get('/auth/github', async (req: Request, res: Response) => {
     try {
-        // Explicitly set CORS headers for this endpoint
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        // Use the same CORS configuration as other endpoints
+        // Don't override with wildcard origin since we need credentials
+        // The global CORS middleware will handle this
         
         // Return Supabase credentials so frontend can handle OAuth
         res.json({ 

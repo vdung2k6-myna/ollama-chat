@@ -3,10 +3,9 @@ const fetch = require('node-fetch');
 async function testCORSFix() {
     console.log('Testing CORS fix for GitHub auth endpoint...\n');
     
-    const backendUrl = 'http://localhost:8000';
+    const backendUrl = 'https://deep-chat-ui.onrender.com';
     const testOrigins = [
         'https://realtime-chat-supabase-react-master.onrender.com',
-        'https://deep-chat-ui.onrender.com',
         'http://localhost:3000',
         'http://localhost:8000'
     ];
