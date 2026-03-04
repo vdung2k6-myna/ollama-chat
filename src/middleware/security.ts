@@ -40,7 +40,9 @@ export const securityHeaders = helmet({
 
 // CORS configuration
 export const corsOptions = {
-  origin: true, // Allow all origins for now to fix TypeScript issue
+  origin: config.security.corsOrigin === '*' 
+    ? true // Allow all origins in development
+    : config.security.corsOrigin, // Use specific origin in production
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
