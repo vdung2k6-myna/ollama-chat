@@ -151,11 +151,15 @@ app.use(express.static(PUBLIC_DIR));
 // Serve node_modules for locally installed libraries with proper MIME types
 app.use('/node_modules', express.static(path.join(__dirname, '../node_modules'), {
     setHeaders: (res, path) => {
-        if (path.endsWith('.js')) {
+        // More robust JavaScript file detection to fix MIME type errors
+        const pathLower = path.toLowerCase();
+        if (pathLower.endsWith('.js') || pathLower.includes('.js')) {
             res.setHeader('Content-Type', 'application/javascript');
-        } else if (path.endsWith('.css')) {
+        } else if (pathLower.endsWith('.css')) {
             res.setHeader('Content-Type', 'text/css');
-        } else if (path.endsWith('.json')) {
+        } else if (pathLower.endsWith('.json')) {
+            res.setHeader('Content-Type', 'application/json');
+        } else if (pathLower.endsWith('.map')) {
             res.setHeader('Content-Type', 'application/json');
         }
     }
