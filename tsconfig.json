@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2020"],
+    "types": ["node", "express", "node-fetch"],
     "typeRoots": ["./node_modules/@types"],
     "allowJs": true,
     "outDir": "./dist",
