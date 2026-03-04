@@ -5,32 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ollama Chat</title>
     <link rel="stylesheet" href="style.css">
+    <script src="env.js"></script>
     <script>
-        // Load backend URL from config.json (can be updated after deployment)
-        let configLoaded = false;
-        
-        async function initBackendUrl() {
-            try {
-                const configResponse = await fetch('./config.json');
-                if (!configResponse.ok) throw new Error('config.json not found');
-                
-                const config = await configResponse.json();
-                if (config.backendUrl) {
-                    window.BACKEND_URL = config.backendUrl;
-                    console.log('BACKEND_URL loaded from config.json:', window.BACKEND_URL);
-                } else {
-                    throw new Error('backendUrl not in config.json');
-                }
-            } catch (err) {
-                console.warn('Failed to load config.json, using default:', err);
-                window.BACKEND_URL = 'http://localhost:5000';
-            } finally {
-                configLoaded = true;
-            }
-        }
-        
-        // Load config before anything else
-        initBackendUrl();
+        // BACKEND_URL is loaded from environment variables via env.js
+        // No need to load from config.json - this is handled at build time
+        console.log('BACKEND_URL:', window.ENV.BACKEND_URL);
     </script>
 </head>
 <body>

@@ -11,9 +11,20 @@ let supabaseInitialized = false;
 // code relative and still override the origin via an env file.
 let serverHost: string = '';
 
-// Backend URL - injected by server or set via environment variable
+// Backend URL - loaded from environment variables via env.js (required)
 // For multi-host deployments, this should point to your backend server
-let backendUrl: string = (window as any).BACKEND_URL || 'http://localhost:5000';
+let backendUrl: string = (window as any).ENV?.BACKEND_URL;
+if (!backendUrl) {
+    console.error('ERROR: BACKEND_URL not configured. Please set BACKEND_URL in your .env file.');
+    document.body.innerHTML = `
+        <div style="padding: 20px; font-family: Arial, sans-serif; text-align: center;">
+            <h2>Configuration Error</h2>
+            <p>BACKEND_URL is not configured. Please set BACKEND_URL in your .env file.</p>
+            <p>Current value: ${backendUrl}</p>
+        </div>
+    `;
+    throw new Error('BACKEND_URL not configured');
+}
 console.log('Backend URL:', backendUrl);
 
 async function loadConfig() {
@@ -71,21 +82,9 @@ async function initSupabase() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Wait for config to be loaded from config.json
-    let retries = 0;
-    while (!(window as any).configLoaded && retries < 50) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        retries++;
-    }
-    
-    if (!(window as any).configLoaded) {
-        console.warn('Config load timeout, using default backendUrl');
-    }
-    
     console.log('DOMContentLoaded - BACKEND_URL is:', backendUrl);
     
-    // Load runtime config and then initialize Supabase
-    await loadConfig();
+    // Initialize Supabase
     await initSupabase();
     
     const authContainer = document.getElementById('auth-container') as HTMLElement;

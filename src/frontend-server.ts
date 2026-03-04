@@ -10,7 +10,14 @@ const app: Express = express();
 const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
 const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || '3000');
 const PUBLIC_DIR = path.join(__dirname, '../public');
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = process.env.BACKEND_URL;
+
+// Validate required configuration
+if (!BACKEND_URL) {
+    console.error('ERROR: BACKEND_URL environment variable is required');
+    console.error('Please set BACKEND_URL in your .env file');
+    process.exit(1);
+}
 
 // Log initial configuration
 console.log('Frontend Server Configuration:');
@@ -93,16 +100,7 @@ app.use((req: Request, res: Response) => {
         return res.status(404).send('index.html not found');
     }
     
-    // Read and inject BACKEND_URL into HTML
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-    let html = fs.readFileSync(indexPath, 'utf-8');
-    html = html.replace(
-        '<script>\n        // Set backend URL - configure via window.BACKEND_URL or it defaults to http://localhost:5000\n        window.BACKEND_URL = window.BACKEND_URL || \'http://localhost:5000\';\n    </script>',
-        `<script>\n        window.BACKEND_URL = '${backendUrl}';\n    </script>`
-    );
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
+    res.sendFile(indexPath);
 });
 
 app.listen(FRONTEND_PORT, () => {
