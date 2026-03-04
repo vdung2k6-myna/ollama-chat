@@ -3,18 +3,36 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: TypeScript, Node.js, Express, Supabase, Ollama API
+  Architecture: Dual-server (backend API + frontend server) with proxy pattern
+  Frontend: Vanilla JavaScript with Marked.js for Markdown rendering
+  Security: Helmet.js, CORS, rate limiting, input validation, authentication
+  Database: Supabase for user authentication and session management
+  Logging: Winston with structured logging and environment-aware levels
+  Configuration: Joi validation with environment-based settings
+  Build: TypeScript compilation with separate configs for backend/frontend
+  Deployment: Multi-host capable (Render.com, Docker, etc.)
+  Code Quality: Strict TypeScript, comprehensive error handling, security best practices
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - Keep proposals under 500 words
+    - Always include a "Non-goals" section
+    - Include security considerations for any new features
+    - Consider dual-server architecture implications
+    - Ensure backward compatibility with existing API contracts
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task must have clear acceptance criteria
+    - Security tasks must include testing requirements
+    - API changes must include versioning strategy
+    - Frontend changes must maintain responsive design
+  specs:
+    - Include detailed security requirements
+    - Document API contracts with examples
+    - Specify configuration changes needed
+    - Include migration strategies for breaking changes
+    - Consider performance implications
