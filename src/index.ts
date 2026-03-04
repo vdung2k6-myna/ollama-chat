@@ -37,6 +37,8 @@ const corsOptions = {
         const allowedOrigins = [
             `${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}`,
             `${FRONTEND_HOST}:${FRONTEND_PORT}`,
+            'https://deep-chat-ui.onrender.com',  // Add the render.com domain
+            'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
         ];
         
         if (allowedOrigins.indexOf(origin) !== -1) {
@@ -46,7 +48,11 @@ const corsOptions = {
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],  // Allow all HTTP methods
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],  // Allow common headers
+    exposedHeaders: ['Access-Control-Allow-Origin'],  // Expose CORS headers
+    optionsSuccessStatus: 200  // For legacy browser support
 };
 
 app.use(cors(corsOptions));
@@ -174,6 +180,12 @@ app.get('/auth/user', async (req: Request, res: Response) => {
 // GitHub OAuth endpoint - returns Supabase credentials for client-side auth
 app.get('/auth/github', async (req: Request, res: Response) => {
     try {
+        // Explicitly set CORS headers for this endpoint
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        
         // Return Supabase credentials so frontend can handle OAuth
         res.json({ 
             supabaseUrl: supabaseUrl,
@@ -184,6 +196,16 @@ app.get('/auth/github', async (req: Request, res: Response) => {
         console.error('Error in GitHub auth:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// Handle preflight OPTIONS requests for all routes
+app.options('*', (req: Request, res: Response) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    res.status(200).end();
 });
 
 app.post('/chat', async (req: Request, res: Response) => {

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { Readable } from 'stream';
+import cors from 'cors';
 
 dotenv.config();
 
@@ -11,6 +12,35 @@ const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
 const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || '3000');
 const PUBLIC_DIR = path.join(__dirname, '../public');
 const BACKEND_URL = process.env.BACKEND_URL;
+
+// Configure CORS for frontend server
+const corsOptions = {
+    origin: function (origin: string | undefined, callback: any) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // List of allowed origins
+        const allowedOrigins = [
+            `${FRONTEND_HOST}:${FRONTEND_PORT}`,
+            'https://deep-chat-ui.onrender.com',  // Add the render.com domain
+            'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log(`CORS blocked request from origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Access-Control-Allow-Origin'],
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 // Validate required configuration
 if (!BACKEND_URL) {
@@ -24,6 +54,16 @@ console.log('Frontend Server Configuration:');
 console.log(`  Frontend: ${FRONTEND_HOST}:${FRONTEND_PORT}`);
 console.log(`  Backend URL: ${BACKEND_URL}`);
 console.log(`  Static files: ${PUBLIC_DIR}`);
+
+// Handle preflight OPTIONS requests for all routes
+app.options('*', (req: Request, res: Response) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    res.status(200).end();
+});
 
 // Proxy API requests to backend (so /chat, /auth, /models, /config, /api go to BACKEND_URL)
 const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api'];
