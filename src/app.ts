@@ -420,8 +420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 messages: conversationHistory,
                 systemMessage: currentSystemMessage,
             };
-            const chatUrl = `${backendUrl}/chat`;
-            const response = await fetch(chatUrl, {
+            const response = await fetch(`${backendUrl}/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

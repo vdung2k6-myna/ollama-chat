@@ -9,7 +9,9 @@ dotenv.config();
 const app: Express = express();
 const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://myna.ddns.net:8080';
 const HTTP_LOCAL_HOST = process.env.HTTP_LOCAL_HOST || 'http://localhost';
-const HTTP_LOCAL_PORT = process.env.HTTP_LOCAL_PORT || 3000;
+const HTTP_LOCAL_PORT = process.env.HTTP_LOCAL_PORT || 8000;
+const FRONTEND_HOST = process.env.FRONTEND_HOST || 'http://localhost';
+const FRONTEND_PORT = process.env.FRONTEND_PORT || 3000;
 
 // Initialize Supabase client with cookie options for PKCE flow
 const supabaseUrl = process.env.SUPABASE_URL || '';
@@ -24,7 +26,30 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 app.use(express.json());
-app.use(cors());
+
+// Configure CORS to allow requests from frontend domains
+const corsOptions = {
+    origin: function (origin: string | undefined, callback: any) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // List of allowed origins
+        const allowedOrigins = [
+            `${HTTP_LOCAL_HOST}:${HTTP_LOCAL_PORT}`,
+            `${FRONTEND_HOST}:${FRONTEND_PORT}`,
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log(`CORS blocked request from origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+};
+
+app.use(cors(corsOptions));
 
 app.get('/models', async (req: Request, res: Response) => {
     try {
