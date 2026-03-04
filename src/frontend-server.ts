@@ -148,8 +148,18 @@ app.use(async (req: Request, res: Response, next) => {
 // Serve static files from public directory
 app.use(express.static(PUBLIC_DIR));
 
-// Serve node_modules for locally installed libraries
-app.use('/node_modules', express.static(path.join(__dirname, '../node_modules')));
+// Serve node_modules for locally installed libraries with proper MIME types
+app.use('/node_modules', express.static(path.join(__dirname, '../node_modules'), {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        } else if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        } else if (path.endsWith('.json')) {
+            res.setHeader('Content-Type', 'application/json');
+        }
+    }
+}));
 
 // Serve index.html for all other routes (SPA support)
 app.use((req: Request, res: Response) => {
