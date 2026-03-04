@@ -39,7 +39,13 @@ const corsOptions = {
             `${FRONTEND_HOST}:${FRONTEND_PORT}`,
             'https://deep-chat-ui.onrender.com',  // Add the render.com domain
             'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
+            'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain (duplicate for safety)
         ];
+        
+        // Allow any subdomain of onrender.com for flexibility
+        if (origin.includes('.onrender.com')) {
+            return callback(null, true);
+        }
         
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
