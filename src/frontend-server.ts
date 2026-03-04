@@ -27,7 +27,7 @@ const corsOptions = {
         // List of allowed origins
         const allowedOrigins = [
             `${config.frontend.host}:${config.frontend.port}`,
-            'https://deep-chat-ui.onrender.com',  // Add the render.com domain
+            `${config.server.host}:${config.server.port}`,
             'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
             'https://github.com',  // Allow GitHub OAuth redirects
             'https://*.github.com',  // Allow GitHub subdomains
