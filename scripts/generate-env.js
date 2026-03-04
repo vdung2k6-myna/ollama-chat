@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Read .env file
-const envPath = path.join(__dirname, '..', '.env');
+const envPath = path.join(__dirname, '..', 'frontend.cfg');
 const envContent = fs.readFileSync(envPath, 'utf8');
 
 // Parse environment variables
