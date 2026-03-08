@@ -28,17 +28,11 @@ const corsOptions = {
         const allowedOrigins = [
             `${config.frontend.host}:${config.frontend.port}`,
             `${config.server.host}:${config.server.port}`,
-            'https://realtime-chat-supabase-react-master.onrender.com',  // Add the frontend render.com domain
             'https://github.com',  // Allow GitHub OAuth redirects
             'https://*.github.com',  // Allow GitHub subdomains
             'https://supabase.co',  // Allow Supabase connections
             'https://*.supabase.co',  // Allow Supabase subdomains
         ];
-        
-        // Allow any subdomain of onrender.com for flexibility
-        if (origin.includes('.onrender.com')) {
-            return callback(null, true);
-        }
         
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
@@ -83,8 +77,29 @@ logger.info('Frontend Server Configuration:', {
     staticFiles: PUBLIC_DIR
 });
 
-// Proxy API requests to backend (so /chat, /auth, /models, /config, /api, /health go to BACKEND_URL)
-const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api', '/health'];
+// Frontend health check endpoint
+app.get('/health', (req: Request, res: Response) => {
+  const healthCheck = {
+    status: 'ok',
+    service: 'frontend',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: process.env['npm_package_version'] || '1.0.0',
+    backendUrl: BACKEND_URL,
+    environment: config.server.nodeEnv
+  };
+
+  logger.info('Frontend health check requested');
+  res.status(200).json(healthCheck);
+});
+
+// Handle preflight OPTIONS requests for frontend health
+app.options('/health', (_req: Request, res: Response) => {
+  res.status(200).end();
+});
+
+// Proxy API requests to backend (so /chat, /auth, /models, /config, /api go to BACKEND_URL)
+const proxyPrefixes = ['/chat', '/auth', '/models', '/config', '/api'];
 app.use(async (req: Request, res: Response, next) => {
     if (!proxyPrefixes.some(p => req.path.startsWith(p))) {
         return next();

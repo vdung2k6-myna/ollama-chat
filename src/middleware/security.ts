@@ -40,14 +40,62 @@ export const securityHeaders = helmet({
 
 // CORS configuration
 export const corsOptions = {
-  origin: config.security.corsOrigin === '*' 
-    ? true // Allow all origins in development
-    : config.security.corsOrigin, // Use specific origin in production
+  origin: function (origin: string | undefined, callback: any) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Development mode - allow all origins
+    if (config.server.nodeEnv === 'development') {
+      return callback(null, true);
+    }
+    
+    // Production mode - strict origin checking
+    const allowedOrigins = [
+      // Load balancer IP ranges (to be configured per environment)
+      ...getLoadBalancerOrigins(),
+      
+      // Frontend server
+      `${config.frontend.host}:${config.frontend.port}`,
+      
+      // Supabase and GitHub for OAuth
+      'https://supabase.co',
+      'https://*.supabase.co',
+      'https://github.com',
+      'https://*.github.com'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['X-Total-Count']
+  exposedHeaders: ['X-Total-Count', 'X-Response-Time'],
+  optionsSuccessStatus: 200,
+  maxAge: 86400 // 24 hours
 };
+
+function getLoadBalancerOrigins(): string[] {
+  // Load from environment variables
+  const lbOrigins = process.env['LOAD_BALANCER_ORIGINS'];
+  if (lbOrigins) {
+    return lbOrigins.split(',').map(origin => origin.trim());
+  }
+  
+  // Default load balancer IP ranges for major cloud providers
+  return [
+    // AWS ALB ranges (these should be updated regularly)
+    '10.0.0.0/8', // Private networks
+    '172.16.0.0/12', // Private networks
+    '192.168.0.0/16', // Private networks
+    
+    // Add specific cloud provider health check ranges as needed
+  ];
+}
 
 export const corsMiddleware = cors(corsOptions);
 

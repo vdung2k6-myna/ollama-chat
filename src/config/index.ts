@@ -22,6 +22,15 @@ const configSchema = Joi.object({
   RATE_LIMIT_WINDOW_MS: Joi.number().default(900000), // 15 minutes
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
   
+  // Health check configuration
+  HEALTH_CHECK_TIMEOUT: Joi.number().default(5000),
+  HEALTH_CHECK_CACHE_DURATION: Joi.number().default(30000),
+  CIRCUIT_BREAKER_THRESHOLD: Joi.number().default(5),
+  CIRCUIT_BREAKER_RESET_TIMEOUT: Joi.number().default(60000),
+  
+  // Load balancer configuration
+  LOAD_BALANCER_ORIGINS: Joi.string().optional().allow(''),
+  
   // Logging configuration
   LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
   LOG_FILE: Joi.string().default('logs/app.log'),
@@ -82,6 +91,23 @@ export const config = {
       windowMs: envConfig.RATE_LIMIT_WINDOW_MS,
       max: envConfig.RATE_LIMIT_MAX_REQUESTS
     }
+  },
+  
+  // Health check settings
+  healthCheck: {
+    timeout: envConfig.HEALTH_CHECK_TIMEOUT,
+    cacheDuration: envConfig.HEALTH_CHECK_CACHE_DURATION,
+    circuitBreaker: {
+      threshold: envConfig.CIRCUIT_BREAKER_THRESHOLD,
+      resetTimeout: envConfig.CIRCUIT_BREAKER_RESET_TIMEOUT
+    }
+  },
+  
+  // CORS settings
+  cors: {
+    origins: envConfig.LOAD_BALANCER_ORIGINS ? 
+      envConfig.LOAD_BALANCER_ORIGINS.split(',') : 
+      []
   },
   
   // Logging

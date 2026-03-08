@@ -9,6 +9,7 @@ import { logger } from './utils/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { corsMiddleware, securityHeaders, rateLimitMiddleware, requestLogger, requestSizeLimit, sanitizeHeaders } from './middleware/security';
 import { sanitizeInput } from './middleware/validation';
+import { healthMetricsMiddleware } from './middleware/metrics';
 import healthRoutes from './routes/health';
 
 dotenv.config();
