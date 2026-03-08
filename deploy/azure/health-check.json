@@ -1,0 +1,360 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "loadBalancerName": {
+      "type": "string",
+      "defaultValue": "ollama-chat-lb",
+      "metadata": {
+        "description": "Name of the load balancer"
+      }
+    },
+    "frontendIPConfigName": {
+      "type": "string",
+      "defaultValue": "LoadBalancerFrontEnd",
+      "metadata": {
+        "description": "Name of the frontend IP configuration"
+      }
+    },
+    "backendPoolName": {
+      "type": "string",
+      "defaultValue": "BackendPool",
+      "metadata": {
+        "description": "Name of the backend address pool"
+      }
+    },
+    "healthProbeName": {
+      "type": "string",
+      "defaultValue": "HealthProbe",
+      "metadata": {
+        "description": "Name of the health probe"
+      }
+    },
+    "lbRuleName": {
+      "type": "string",
+      "defaultValue": "LBRule",
+      "metadata": {
+        "description": "Name of the load balancing rule"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "backendPort": {
+      "type": "int",
+      "defaultValue": 5000,
+      "metadata": {
+        "description": "Backend port for health checks and traffic"
+      }
+    },
+    "frontendPort": {
+      "type": "int",
+      "defaultValue": 80,
+      "metadata": {
+        "description": "Frontend port for incoming traffic"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "apiVersion": "2020-05-01",
+      "name": "[parameters('loadBalancerName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "[parameters('frontendIPConfigName')]",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetId')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[parameters('backendPoolName')]"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "[parameters('lbRuleName')]",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/frontendIPConfigurations/', parameters('frontendIPConfigName'))]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/backendAddressPools/', parameters('backendPoolName'))]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": "[parameters('frontendPort')]",
+              "backendPort": "[parameters('backendPort')]",
+              "enableFloatingIP": true,
+              "idleTimeoutInMinutes": 4,
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/probes/', parameters('healthProbeName'))]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "[parameters('healthProbeName')]",
+            "properties": {
+              "protocol": "Http",
+              "port": "[parameters('backendPort')]",
+              "requestPath": "/health",
+              "intervalInSeconds": 30,
+              "numberOfProbes": 2,
+              "probeThreshold": 1
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "variables": {
+    "subnetId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Network/virtualNetworks/{vnet-name}/subnets/{subnet-name}"
+  },
+  "outputs": {
+    "loadBalancerId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName'))]"
+    },
+    "frontendIPConfigId": {
+      "type": "string",
+      "value": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/frontendIPConfigurations/', parameters('frontendIPConfigName'))]"
+    },
+    "backendPoolId": {
+      "type": "string",
+      "value": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/backendAddressPools/', parameters('backendPoolName'))]"
+    },
+    "healthProbeId": {
+      "type": "string",
+      "value": "[concat(resourceId('Microsoft.Network/loadBalancers', parameters('loadBalancerName')), '/probes/', parameters('healthProbeName'))]"
+    }
+  }
+}
+
+---
+# Azure Application Gateway Configuration (Alternative)
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "applicationGatewayName": {
+      "type": "string",
+      "defaultValue": "ollama-chat-app-gateway",
+      "metadata": {
+        "description": "Name of the Application Gateway"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/applicationGateways",
+      "apiVersion": "2020-05-01",
+      "name": "[parameters('applicationGatewayName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "Standard_v2",
+          "tier": "Standard_v2",
+          "capacity": 2
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "appGatewayIpConfig",
+            "properties": {
+              "subnet": {
+                "id": "[variables('subnetId')]"
+              }
+            }
+          }
+        ],
+        "sslCertificates": [],
+        "authenticationCertificates": [],
+        "httpListeners": [
+          {
+            "name": "appGatewayHttpListener",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/frontendIPConfigurations/appGatewayFrontendIP')]"
+              },
+              "frontendPort": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/frontendPorts/appGatewayFrontendPort')]"
+              },
+              "protocol": "Http",
+              "sslCertificate": null,
+              "requireServerNameIndication": false
+            }
+          }
+        ],
+        "urlPathMaps": [
+          {
+            "name": "urlpathmap",
+            "properties": {
+              "defaultBackendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/backendAddressPools/appGatewayBackendPool')]"
+              },
+              "defaultBackendHttpSettings": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+              },
+              "pathRules": [
+                {
+                  "name": "pathrule1",
+                  "properties": {
+                    "paths": [
+                      "/health",
+                      "/ready",
+                      "/live",
+                      "/metrics"
+                    ],
+                    "backendAddressPool": {
+                      "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/backendAddressPools/appGatewayBackendPool')]"
+                    },
+                    "backendHttpSettings": {
+                      "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+                    }
+                  }
+                },
+                {
+                  "name": "pathrule2",
+                  "properties": {
+                    "paths": [
+                      "/api/*",
+                      "/chat",
+                      "/auth/*",
+                      "/models"
+                    ],
+                    "backendAddressPool": {
+                      "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/backendAddressPools/appGatewayBackendPool')]"
+                    },
+                    "backendHttpSettings": {
+                      "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "requestRoutingRules": [
+          {
+            "name": "rule1",
+            "properties": {
+              "ruleType": "PathBasedRouting",
+              "httpListener": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/httpListeners/appGatewayHttpListener')]"
+              },
+              "urlPathMap": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/urlPathMaps/urlpathmap')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "appGatewayBackendPool",
+            "properties": {
+              "BackendAddresses": [
+                {
+                  "ipAddress": "10.0.1.4"
+                },
+                {
+                  "ipAddress": "10.0.1.5"
+                }
+              ]
+            }
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "appGatewayBackendHttpSettings",
+            "properties": {
+              "port": 5000,
+              "protocol": "Http",
+              "cookieBasedAffinity": "Disabled",
+              "pickHostNameFromBackendAddress": false,
+              "requestTimeout": 30,
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName')), '/probes/healthprobe')]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "healthprobe",
+            "properties": {
+              "protocol": "Http",
+              "path": "/health",
+              "interval": 30,
+              "timeout": 30,
+              "unhealthyThreshold": 3
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "appGatewayFrontendIP",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[variables('publicIPAddressId')]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "appGatewayFrontendPort",
+            "properties": {
+              "Port": 80
+            }
+          }
+        ],
+        "webApplicationFirewallConfiguration": {
+          "enabled": true,
+          "firewallMode": "Detection",
+          "ruleSetType": "OWASP",
+          "ruleSetVersion": "3.0",
+          "disabledRuleGroups": [],
+          "requestBodyCheck": true,
+          "maxRequestBodySizeInKb": 128
+        }
+      }
+    }
+  ],
+  "variables": {
+    "subnetId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Network/virtualNetworks/{vnet-name}/subnets/{subnet-name}",
+    "publicIPAddressId": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Network/publicIPAddresses/{public-ip-name}"
+  },
+  "outputs": {
+    "applicationGatewayId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName'))]"
+    }
+  }
+}
+
+# Notes:
+# - Replace {subscription-id}, {resource-group}, {vnet-name}, {subnet-name} with your actual Azure resource IDs
+# - For Application Gateway, replace {public-ip-name} with your public IP address name
+# - Backend server should be running on port 5000
+# - Health checks will verify the /health endpoint returns HTTP 200

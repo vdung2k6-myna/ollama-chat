@@ -24,20 +24,30 @@ const corsOptions = {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        // List of allowed origins
+        // Development mode - allow all origins
+        if (config.server.nodeEnv === 'development') {
+            return callback(null, true);
+        }
+        
+        // Production mode - strict origin checking
         const allowedOrigins = [
+            // Frontend origins
             `${config.frontend.host}:${config.frontend.port}`,
+            
+            // Backend for proxy requests
             `${config.server.host}:${config.server.port}`,
-            'https://github.com',  // Allow GitHub OAuth redirects
-            'https://*.github.com',  // Allow GitHub subdomains
-            'https://supabase.co',  // Allow Supabase connections
-            'https://*.supabase.co',  // Allow Supabase subdomains
+            
+            // OAuth providers
+            'https://github.com',
+            'https://*.github.com',
+            'https://supabase.co',
+            'https://*.supabase.co'
         ];
         
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            logger.warn(`CORS blocked request from origin: ${origin}`);
+            logger.warn(`Frontend CORS blocked request from origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },

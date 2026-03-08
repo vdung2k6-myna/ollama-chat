@@ -83,7 +83,7 @@ router.options('/', (_req: Request, res: Response) => {
 });
 
 // Ready check endpoint (for Kubernetes) - Enhanced with timeout, caching, and circuit breaker
-function readyHandler(req: Request, res: Response): void {
+async function readyHandler(req: Request, res: Response): Promise<void> {
   const startTime = Date.now();
   
   try {
@@ -116,9 +116,43 @@ function readyHandler(req: Request, res: Response): void {
       return;
     }
 
-    // For now, assume Ollama is ready (simplified check)
-    let isOllamaReady = true;
-    let responseTime = Date.now() - startTime;
+    // Check Ollama service with timeout protection
+    let isOllamaReady = false;
+    let ollamaResponseTime = 0;
+    let ollamaStatusCode = 0;
+    
+    try {
+      // Timeout protection with AbortController
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), config.healthCheck.timeout);
+
+      const ollamaResponse = await fetch(`${config.ollama.baseUrl}/api/tags`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      ollamaResponseTime = Date.now() - startTime;
+      ollamaStatusCode = ollamaResponse.status;
+      isOllamaReady = ollamaResponse.ok;
+      
+      logger.debug('Ollama readiness check completed', {
+        url: config.ollama.baseUrl,
+        statusCode: ollamaStatusCode,
+        responseTime: ollamaResponseTime,
+        ready: isOllamaReady
+      });
+    } catch (error) {
+      ollamaResponseTime = Date.now() - startTime;
+      ollamaStatusCode = 0;
+      isOllamaReady = false;
+      
+      logger.warn('Ollama readiness check failed', {
+        url: config.ollama.baseUrl,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        responseTime: ollamaResponseTime
+      });
+    }
     
     // Update circuit breaker
     updateCircuitBreaker(isOllamaReady);
@@ -130,8 +164,8 @@ function readyHandler(req: Request, res: Response): void {
         ollama: {
           status: isOllamaReady ? 'ok' : 'failed',
           url: config.ollama.baseUrl,
-          responseTime: responseTime,
-          statusCode: isOllamaReady ? 200 : 0
+          responseTime: ollamaResponseTime,
+          statusCode: ollamaStatusCode
         }
       }
     };
@@ -142,13 +176,13 @@ function readyHandler(req: Request, res: Response): void {
     if (!isOllamaReady) {
       logger.warn('Readiness check failed: Ollama not reachable', {
         statusCode: 0,
-        responseTime: responseTime
+        responseTime: ollamaResponseTime
       });
       res.status(503).json(readinessCheck);
       return;
     }
 
-    logger.info('Readiness check passed', { responseTime });
+    logger.info('Readiness check passed', { responseTime: ollamaResponseTime });
     res.status(200).json(readinessCheck);
     return;
   } catch (error) {

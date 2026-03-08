@@ -1,0 +1,80 @@
+# AWS Application Load Balancer Health Check Configuration
+# 
+# This configuration template sets up health checks for the Ollama Chat application
+# Load balancers should check the backend server directly on port 5000
+
+HealthCheckConfig:
+  Protocol: HTTP
+  Port: '5000'
+  Path: /health
+  IntervalSeconds: 30
+  TimeoutSeconds: 5
+  HealthyThresholdCount: 2
+  UnhealthyThresholdCount: 2
+  Matcher:
+    HttpCode: '200'
+
+# Target Group Configuration for Backend Server
+TargetGroupConfig:
+  Protocol: HTTP
+  Port: 5000
+  VpcId: ${VPC_ID}
+  HealthCheckProtocol: HTTP
+  HealthCheckPort: 5000
+  HealthCheckPath: /health
+  HealthCheckIntervalSeconds: 30
+  HealthCheckTimeoutSeconds: 5
+  HealthyThresholdCount: 2
+  UnhealthyThresholdCount: 2
+  Matcher:
+    HttpCode: '200'
+
+# Application Load Balancer Configuration
+LoadBalancerConfig:
+  Type: application
+  Scheme: internet-facing
+  IpAddressType: ipv4
+  Subnets: ${SUBNET_IDS}
+  
+  # Security Group Configuration
+  SecurityGroups:
+    - ${LOAD_BALANCER_SG_ID}
+  
+  # Listeners Configuration
+  Listeners:
+    - Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: ${BACKEND_TARGET_GROUP_ARN}
+    
+    # Optional: HTTPS listener
+    - Protocol: HTTPS
+      Port: 443
+      SslPolicy: ELBSecurityPolicy-TLS-1-2-2017-01
+      Certificates:
+        - CertificateArn: ${SSL_CERTIFICATE_ARN}
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: ${BACKEND_TARGET_GROUP_ARN}
+
+# Backend Target Group Configuration
+BackendTargetGroup:
+  Name: ollama-chat-backend
+  Port: 5000
+  Protocol: HTTP
+  VpcId: ${VPC_ID}
+  HealthCheckEnabled: true
+  HealthCheckPath: /health
+  HealthCheckIntervalSeconds: 30
+  HealthCheckTimeoutSeconds: 5
+  HealthyThresholdCount: 2
+  UnhealthyThresholdCount: 2
+  Matcher:
+    HttpCode: '200'
+
+# Notes:
+# - Replace ${VARIABLES} with your actual AWS resource IDs
+# - Health checks will verify the /health endpoint returns HTTP 200
+# - Backend server should be running on port 5000
+# - Frontend server (port 3000) should be configured separately if needed

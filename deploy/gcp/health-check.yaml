@@ -1,0 +1,144 @@
+# Google Cloud Platform Health Check Configuration
+# 
+# This configuration sets up health checks for the Ollama Chat application
+# Load balancers should check the backend server directly on port 5000
+
+apiVersion: compute/v1
+kind: HealthCheck
+metadata:
+  name: ollama-chat-health-check
+  description: Health check for Ollama Chat backend server
+spec:
+  type: HTTP
+  httpHealthCheck:
+    port: 5000
+    portName: http
+    requestPath: /health
+    host: localhost
+    proxyHeader: NONE
+    response: "ok"
+  checkIntervalSec: 30
+  timeoutSec: 5
+  healthyThreshold: 2
+  unhealthyThreshold: 2
+
+---
+# Backend Service Configuration
+apiVersion: compute/v1
+kind: BackendService
+metadata:
+  name: ollama-chat-backend-service
+  description: Backend service for Ollama Chat application
+spec:
+  protocol: HTTP
+  healthChecks:
+    - kind: compute#healthCheck
+      name: ollama-chat-health-check
+  loadBalancingScheme: EXTERNAL
+  portName: http
+  timeoutSec: 30
+  connectionDraining:
+    drainingTimeoutSec: 30
+
+---
+# Target Pool Configuration (for regional load balancing)
+apiVersion: compute/v1
+kind: TargetPool
+metadata:
+  name: ollama-chat-target-pool
+  description: Target pool for Ollama Chat backend instances
+spec:
+  healthChecks:
+    - kind: compute#httpHealthCheck
+      name: ollama-chat-health-check
+  instances:
+    - zone: us-central1-a
+      instance: ollama-chat-instance-1
+    - zone: us-central1-b
+      instance: ollama-chat-instance-2
+    - zone: us-central1-c
+      instance: ollama-chat-instance-3
+
+---
+# URL Map for HTTP(S) Load Balancer
+apiVersion: compute/v1
+kind: UrlMap
+metadata:
+  name: ollama-chat-url-map
+  description: URL map for Ollama Chat application
+spec:
+  defaultService: ollama-chat-backend-service
+  hostRules:
+    - hosts:
+        - "ollama-chat.example.com"
+      pathMatcher: ollama-chat-path-matcher
+  pathMatchers:
+    - name: ollama-chat-path-matcher
+      defaultService: ollama-chat-backend-service
+      pathRules:
+        - paths:
+            - "/health"
+            - "/ready"
+            - "/live"
+            - "/metrics"
+          service: ollama-chat-backend-service
+        - paths:
+            - "/api/*"
+            - "/chat"
+            - "/auth/*"
+            - "/models"
+          service: ollama-chat-backend-service
+
+---
+# HTTP(S) Target Proxy
+apiVersion: compute/v1
+kind: TargetHttpProxy
+metadata:
+  name: ollama-chat-target-proxy
+  description: Target proxy for HTTP traffic
+spec:
+  urlMap: ollama-chat-url-map
+
+---
+# Forwarding Rule
+apiVersion: compute/v1
+kind: ForwardingRule
+metadata:
+  name: ollama-chat-forwarding-rule
+  description: Forwarding rule for Ollama Chat application
+spec:
+  IPAddress: auto
+  IPProtocol: TCP
+  portRange: 80
+  target: ollama-chat-target-proxy
+
+---
+# HTTPS Target Proxy (optional)
+apiVersion: compute/v1
+kind: TargetHttpsProxy
+metadata:
+  name: ollama-chat-https-target-proxy
+  description: Target proxy for HTTPS traffic
+spec:
+  urlMap: ollama-chat-url-map
+  sslCertificates:
+    - ollama-chat-ssl-cert
+
+---
+# HTTPS Forwarding Rule (optional)
+apiVersion: compute/v1
+kind: ForwardingRule
+metadata:
+  name: ollama-chat-https-forwarding-rule
+  description: Forwarding rule for HTTPS traffic
+spec:
+  IPAddress: auto
+  IPProtocol: TCP
+  portRange: 443
+  target: ollama-chat-https-target-proxy
+
+# Notes:
+# - Replace instance names with your actual GCP instances
+# - Configure SSL certificates for HTTPS load balancing
+# - Adjust health check intervals based on your requirements
+# - Backend server should be running on port 5000

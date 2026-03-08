@@ -213,6 +213,38 @@ The application provides comprehensive health check endpoints accessible from bo
 
 All health endpoints include proper CORS headers and are accessible from frontend applications for monitoring and health checks.
 
+#### Enhanced Health Check Features
+
+**Direct Backend Health Checks:**
+- Load balancers should check backend server directly on port 5000
+- No proxying through frontend server for better performance
+- Production-appropriate CORS configuration
+
+**Advanced Health Check Features:**
+- **Timeout Protection**: Health checks timeout after 5 seconds to prevent hanging
+- **Circuit Breaker Pattern**: Automatically opens circuit after 5 consecutive failures, preventing Ollama overload
+- **Caching**: Health check results cached for 30 seconds to reduce Ollama load
+- **Detailed Metrics**: Comprehensive metrics for monitoring and alerting
+
+**Load Balancer Integration:**
+- Configure load balancers to check `/health` endpoint on port 5000
+- Set appropriate timeouts (30 seconds recommended)
+- Use provided configuration templates in `deploy/` directory
+
+Example AWS ALB configuration:
+```yaml
+HealthCheckConfig:
+  Protocol: HTTP
+  Port: '5000'
+  Path: /health
+  IntervalSeconds: 30
+  TimeoutSeconds: 5
+  HealthyThresholdCount: 2
+  UnhealthyThresholdCount: 2
+```
+
+See `deploy/` directory for complete configuration templates for AWS, GCP, and Azure.
+
 ## Troubleshooting
 
 ### Common Issues

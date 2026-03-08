@@ -1,0 +1,161 @@
+# Prometheus Alerting Rules for Health Check Monitoring
+#
+# This configuration defines alerting rules for monitoring the health check
+# endpoints of the Ollama Chat application.
+
+groups:
+  - name: health-check-alerts
+    rules:
+      # Alert when health check success rate drops below 95%
+      - alert: HealthCheckFailure
+        expr: health_check_success_rate < 95
+        for: 2m
+        labels:
+          severity: critical
+          component: health-check
+        annotations:
+          summary: "Health check failure rate too high"
+          description: "Health check success rate is {{ $value }}% for {{ $labels.path }}. Expected > 95%."
+          runbook_url: "https://docs.ollama.chat/health-checks/troubleshooting"
+
+      # Alert when health check response time exceeds 100ms
+      - alert: HealthCheckResponseTime
+        expr: health_check_response_time_avg > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: health-check
+        annotations:
+          summary: "Health check response time too high"
+          description: "Health check response time is {{ $value }}ms for {{ $labels.path }}. Expected < 100ms."
+          runbook_url: "https://docs.ollama.chat/health-checks/performance"
+
+      # Alert when Ollama service is not ready
+      - alert: OllamaServiceDown
+        expr: ollama_readiness_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: ollama
+        annotations:
+          summary: "Ollama service is down"
+          description: "Ollama service is not responding to readiness checks for {{ $labels.path }}"
+          runbook_url: "https://docs.ollama.chat/ollama/troubleshooting"
+
+      # Alert when circuit breaker is open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_open == 1
+        for: 5m
+        labels:
+          severity: warning
+          component: health-check
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit breaker has been open for {{ $value }} minutes on {{ $labels.path }}"
+          runbook_url: "https://docs.ollama.chat/health-checks/circuit-breaker"
+
+      # Alert when health check requests fail consistently
+      - alert: HealthCheckConsistentFailures
+        expr: rate(health_check_failure_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+          component: health-check
+        annotations:
+          summary: "Health check consistent failures"
+          description: "Health check failures detected at rate {{ $value }} per second for {{ $labels.path }}"
+          runbook_url: "https://docs.ollama.chat/health-checks/troubleshooting"
+
+      # Alert when no health check requests are being made (possible monitoring issue)
+      - alert: HealthCheckNoRequests
+        expr: rate(health_check_requests_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "No health check requests detected"
+          description: "No health check requests have been made to {{ $labels.path }} in the last 10 minutes"
+          runbook_url: "https://docs.ollama.chat/monitoring/troubleshooting"
+
+      # Alert when time since last failure is very high (potential stuck metrics)
+      - alert: HealthCheckStaleMetrics
+        expr: health_check_time_since_last_failure > 86400000  # 24 hours
+        for: 1h
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Health check metrics may be stale"
+          description: "No health check failures detected for {{ $labels.path }} in over 24 hours. Metrics may be stale."
+          runbook_url: "https://docs.ollama.chat/monitoring/metrics"
+
+  - name: ollama-service-alerts
+    rules:
+      # Alert when Ollama readiness check fails
+      - alert: OllamaReadinessFailure
+        expr: ollama_readiness_check_duration_seconds > 5
+        for: 1m
+        labels:
+          severity: critical
+          component: ollama
+        annotations:
+          summary: "Ollama readiness check taking too long"
+          description: "Ollama readiness check is taking {{ $value }} seconds for {{ $labels.path }}"
+          runbook_url: "https://docs.ollama.chat/ollama/performance"
+
+      # Alert when Ollama service returns non-200 status
+      - alert: OllamaServiceError
+        expr: ollama_readiness_status_code != 200
+        for: 2m
+        labels:
+          severity: critical
+          component: ollama
+        annotations:
+          summary: "Ollama service returning error"
+          description: "Ollama service returned status {{ $value }} for {{ $labels.path }}"
+          runbook_url: "https://docs.ollama.chat/ollama/troubleshooting"
+
+  - name: system-health-alerts
+    rules:
+      # Alert when system memory usage is high
+      - alert: SystemMemoryHigh
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "System memory usage is high"
+          description: "System memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          runbook_url: "https://docs.ollama.chat/system/memory"
+
+      # Alert when system CPU usage is high
+      - alert: SystemCPUHigh
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "System CPU usage is high"
+          description: "System CPU usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          runbook_url: "https://docs.ollama.chat/system/cpu"
+
+      # Alert when disk space is low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "Disk space is low"
+          description: "Disk space usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          runbook_url: "https://docs.ollama.chat/system/disk"
+
+# Notes:
+# - These alerts assume Prometheus is scraping the /metrics endpoint
+# - Adjust thresholds based on your specific requirements
+# - Update runbook URLs to point to your actual documentation
+# - Add additional labels as needed for your alert routing
